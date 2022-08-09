@@ -1,9 +1,14 @@
 {
-    "pretrained_model":"bert-base-cased",
     "valid_rate":0.2,
+    "kfolds":2,
     "epoch":1,
     "batch_size":16,
-    "lr":1e-4,
     "gpu":0,
-    "seed":0
+    "seed":0,
+    
+    "network":{
+        "model_name":"bert-base-cased",
+        "lr":1e-4,
+        "dropout":0
+    }
 }

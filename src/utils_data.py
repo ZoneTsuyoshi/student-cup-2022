@@ -31,9 +31,10 @@ class DescriptionDataset(Dataset):
 
 
 def get_dataset(config):
-    model_name = config["pretrained_model"]
+    model_name = config["network"]["model_name"]
     valid_rate = config["valid_rate"]
     batch_size = config["batch_size"]
+    kfolds = config["kfolds"]
     
     train_df = pd.read_csv("../data/train.csv", index_col=0) # id, description, jopflag
     test_df = pd.read_csv("../data/test.csv", index_col=0) # id, description
@@ -45,12 +46,15 @@ def get_dataset(config):
     tokenizer = BertTokenizer.from_pretrained(model_name)
     
     # loader
-    train_texts, valid_texts, train_labels, valid_labels = train_test_split(train_texts, train_labels, test_size=valid_rate, stratify=train_labels)
-    train_dataset = DescriptionDataset(train_texts, train_labels, tokenizer)
-    valid_dataset = DescriptionDataset(valid_texts, valid_labels, tokenizer)
-    test_dataset = DescriptionDataset(test_texts, None, tokenizer)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
+    if kfolds==1:
+        train_texts, valid_texts, train_labels, valid_labels = train_test_split(train_texts, train_labels, test_size=valid_rate, stratify=train_labels)
+        train_dataset = DescriptionDataset(train_texts, train_labels, tokenizer)
+        valid_dataset = DescriptionDataset(valid_texts, valid_labels, tokenizer)
+        test_dataset = DescriptionDataset(test_texts, None, tokenizer)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
+    elif kfolds>1:
+        skf = StratifiedKFold(n_splits=kfolds, random_state=None, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
     return train_loader, valid_loader, test_loader

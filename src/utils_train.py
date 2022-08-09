@@ -1,70 +1,71 @@
 import torch
+from torch import nn
 import torchmetrics
 import pytorch_lightning as pl
-from transformers import BertForSequenceClassification, BertModel
+from transformers import BertForSequenceClassification, BertModel, BertConfig
 # from utils_metrics import *
 
 
 class LitBertForSequenceClassification(pl.LightningModule):
-    def __init__(self, model_name:str, dirpath, lr:float, num_labels:int=4):
+    def __init__(self, model_name:str, dirpath, lr:float, dropout:float=0., num_labels:int=4):
         super().__init__()
         self.save_hyperparameters()
 
         # load BERT model
-        self.bert_sc = BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
+        # self.bert_sc = BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
+        bert_config = BertConfig.from_pretrained(model_name)
+        self.bert = BertModel.from_pretrained(model_name)
         self.accuracy = torchmetrics.Accuracy()
+        
+        self.linear = nn.Linear(bert_config.hidden_size, num_labels)
+        self.dropout = nn.Dropout(dropout)
+        
+        
+    def forward(self, input_ids, attention_mask, token_type_ids=None, labels=None):
+        bout = self.bert(input_ids, attention_mask, token_type_ids)
+        logits = self.linear(self.dropout(bout[1]))
+        loss = None
+        if labels is not None:
+            loss_fn = torch.nn.CrossEntropyLoss()
+            loss = loss_fn(logits, labels)
+        return loss, logits
         
 
     def training_step(self, batch, batch_idx):
-        output = self.bert_sc(**batch)
-        loss = output.loss
-        self.log('train_loss', loss)
-        # loss = self._shared_loss(batch, batch_idx, "train")
-        self._shared_eval(batch, batch_idx, "train")
+        loss, logits = self._shared_loss(batch, batch_idx, "train")
+        self._shared_eval(batch, logits, "train")
         return loss
         
 
     def validation_step(self, batch, batch_idx):
-        output = self.bert_sc(**batch)
-        val_loss = output.loss
-        self.log('valid_loss', val_loss)
-        # val_loss = self._shared_loss(batch, batch_idx, "valid")
-        self._shared_eval(batch, batch_idx, "valid")
+        val_loss, logits = self._shared_loss(batch, batch_idx, "valid")
+        self._shared_eval(batch, logits, "valid")
         
         
     def test_step(self, batch, batch_idx):
         output = self.bert_sc(**batch)
         labels_predicted = output.logits.argmax(-1)
         return labels_predicted
-    
-#     def test_step_end(self, test_outputs):
-#         return torch.cat(test_outputs.labels), torch.cat(test_outputs.labels_predicted)
-        
-        
-#     def test_epoch_end(self, test_step_outputs):
-#         labels = torch.cat(test_step_outputs.labels)
-#         labels_predicted = torch.cat(test_step_outputs.labels_predicted)
-#         plot_confusion_matrix(labels, labels_predicted, self.dirpath)
         
     
-    # def _shared_loss(self, batch, batch_idx, prefix):
-    #     output = self.bert_sc(**batch)
-    #     loss = output.loss
-    #     self.log(f'{prefix}_loss', loss)
-    #     return loss
+    def _shared_loss(self, batch, batch_idx, prefix):
+        # output = self.bert_sc(**batch)
+        # loss = output.loss
+        loss, logits = self(**batch)
+        self.log(f'{prefix}_loss', loss)
+        return loss, logits
     
         
-    def _shared_eval(self, batch, batch_idx, prefix):
+    def _shared_eval(self, batch, logits, prefix):
         labels = batch["labels"]
-        output = self.bert_sc(**batch)
-        labels_predicted = output.logits.argmax(-1)
+        labels_predicted = logits.argmax(-1)
         self.accuracy(labels_predicted, labels)
         self.log(f'{prefix}_accuracy', self.accuracy, on_epoch=True)
         
         
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        output = self.bert_sc(**batch)
-        labels_predicted = output.logits.argmax(-1)
+        _, logits = self(**batch)
+        labels_predicted = logits.argmax(-1)
         return labels_predicted
 
         

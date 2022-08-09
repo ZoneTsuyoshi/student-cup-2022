@@ -9,11 +9,10 @@ from utils_train import LitBertForSequenceClassification
 
 
 def main(config, dirpath):
-    model_name = config["pretrained_model"]
     epoch = config["epoch"]
-    lr = config["lr"]
     gpu = config["gpu"]
     seed = config["seed"]
+    config["network"]["dirpath"] = dirpath
     
     if not os.path.exists(dirpath.rsplit("/",1)[0]):
         os.mkdir(dirpath.rsplit("/",1)[0])
@@ -31,7 +30,7 @@ def main(config, dirpath):
     np.random.seed(seed)
     
     train_loader, valid_loader, test_loader = get_dataset(config)
-    model = LitBertForSequenceClassification(model_name, dirpath, lr)
+    model = LitBertForSequenceClassification(**config["network"])
     checkpoint = pl.callbacks.ModelCheckpoint(monitor='valid_loss', mode='min', save_top_k=1, save_weights_only=True, dirpath=dirpath)
     comet_logger = pl.loggers.CometLogger(workspace=os.environ.get("zonetsuyoshi"), save_dir=dirpath, project_name="student-cup-2022")
     trainer = pl.Trainer(accelerator="gpu", devices=[gpu], max_epochs=epoch, callbacks=[checkpoint], logger=comet_logger)
@@ -40,7 +39,7 @@ def main(config, dirpath):
     # best_model_path = os.path.join("../results/09/epoch=0-step=202.ckpt")
     # model = LitBertForSequenceClassification(model_name, dirpath, lr).load_from_checkpoint(best_model_path)
     model = LitBertForSequenceClassification.load_from_checkpoint(checkpoint.best_model_path)
-    model.bert_sc.save_pretrained(dirpath)
+    # model.bert.save_pretrained(dirpath)
     trainer = pl.Trainer()
     labels_predicted = torch.cat(trainer.predict(model, test_loader))
     pd.DataFrame(np.array([np.arange(1516, 3033), labels_predicted.detach().cpu().numpy()+1]).T).to_csv(os.path.join(dirpath, "submission.csv"), header=False, index=False)
@@ -60,7 +59,7 @@ if __name__ == "__main__":
     config = json.load(f)
     f.close()
     
-    model_name = config["pretrained_model"]
+    model_name = config["network"]["model_name"]
     dt_now = datetime.datetime.now()
     # dirpath = os.path.join("../results", "{:02}{:02}{:02}-{}".format(dt_now.day, dt_now.hour, dt_now.minute, model_name))
     dirpath = os.path.join("../results", "{:02}".format(dt_now.day))
