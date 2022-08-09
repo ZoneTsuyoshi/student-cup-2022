@@ -1,4 +1,4 @@
-import argparse, datetime, json, os
+import argparse, datetime, json, os, glob
 import pandas as pd
 import numpy as np
 import torch
@@ -12,7 +12,8 @@ def main(config, dirpath):
     epoch = config["epoch"]
     gpu = config["gpu"]
     seed = config["seed"]
-    config["network"]["dirpath"] = dirpath
+    kfolds = config["kfolds"]
+    # config["network"]["dirpath"] = dirpath
     
     if not os.path.exists(dirpath.rsplit("/",1)[0]):
         os.mkdir(dirpath.rsplit("/",1)[0])
@@ -29,20 +30,25 @@ def main(config, dirpath):
         torch.cuda.manual_seed(seed)
     np.random.seed(seed)
     
-    train_loader, valid_loader, test_loader = get_dataset(config)
-    model = LitBertForSequenceClassification(**config["network"])
-    checkpoint = pl.callbacks.ModelCheckpoint(monitor='valid_loss', mode='min', save_top_k=1, save_weights_only=True, dirpath=dirpath)
+    train_loader_list, valid_loader_list, test_loader = get_dataset(config)
     comet_logger = pl.loggers.CometLogger(workspace=os.environ.get("zonetsuyoshi"), save_dir=dirpath, project_name="student-cup-2022")
-    trainer = pl.Trainer(accelerator="gpu", devices=[gpu], max_epochs=epoch, callbacks=[checkpoint], logger=comet_logger)
-    trainer.fit(model, train_loader, valid_loader)
+    for i, (train_loader, valid_loader) in enumerate(zip(train_loader_list, valid_loader_list)):
+        model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=i)
+        checkpoint = pl.callbacks.ModelCheckpoint(monitor=f'valid_loss{i}', mode='min', save_top_k=1, save_weights_only=True, dirpath=dirpath, filename=f"fold{i}" + "{epoch}-{step}.ckpt")
+        trainer = pl.Trainer(accelerator="gpu", devices=[gpu], max_epochs=epoch, callbacks=[checkpoint], logger=comet_logger)
+        trainer.fit(model, train_loader, valid_loader)
     
-    # best_model_path = os.path.join("../results/09/epoch=0-step=202.ckpt")
-    # model = LitBertForSequenceClassification(model_name, dirpath, lr).load_from_checkpoint(best_model_path)
-    model = LitBertForSequenceClassification.load_from_checkpoint(checkpoint.best_model_path)
-    # model.bert.save_pretrained(dirpath)
-    trainer = pl.Trainer()
-    labels_predicted = torch.cat(trainer.predict(model, test_loader))
-    pd.DataFrame(np.array([np.arange(1516, 3033), labels_predicted.detach().cpu().numpy()+1]).T).to_csv(os.path.join(dirpath, "submission.csv"), header=False, index=False)
+    logits = []
+    model_path_list = glob.glob(os.path.join(dirpath, "*.ckpt"))
+    for model_path in model_path_list:
+        # best_model_path = os.path.join("../results/09/epoch=0-step=202.ckpt")
+        # model = LitBertForSequenceClassification(model_name, dirpath, lr).load_from_checkpoint(best_model_path)
+        model = LitBertForSequenceClassification.load_from_checkpoint(model_path)
+        # model.bert.save_pretrained(dirpath)
+        trainer = pl.Trainer()
+        logits.append(torch.cat(trainer.predict(model, test_loader)).detach().cpu().numpy())
+    labels_predicted = np.argmax(np.array(logits).sum(0), -1)
+    pd.DataFrame(np.array([np.arange(1516, 3033), labels_predicted+1]).T).to_csv(os.path.join(dirpath, "submission.csv"), header=False, index=False)
     
     
     

@@ -1,6 +1,6 @@
 import bs4, copy, re
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 import torch
 from torch.utils.data import DataLoader, random_split, Dataset, Subset
 from transformers import BertTokenizer
@@ -35,6 +35,7 @@ def get_dataset(config):
     valid_rate = config["valid_rate"]
     batch_size = config["batch_size"]
     kfolds = config["kfolds"]
+    seed = config["seed"]
     
     train_df = pd.read_csv("../data/train.csv", index_col=0) # id, description, jopflag
     test_df = pd.read_csv("../data/test.csv", index_col=0) # id, description
@@ -50,11 +51,17 @@ def get_dataset(config):
         train_texts, valid_texts, train_labels, valid_labels = train_test_split(train_texts, train_labels, test_size=valid_rate, stratify=train_labels)
         train_dataset = DescriptionDataset(train_texts, train_labels, tokenizer)
         valid_dataset = DescriptionDataset(valid_texts, valid_labels, tokenizer)
-        test_dataset = DescriptionDataset(test_texts, None, tokenizer)
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
+        train_loader = [DataLoader(train_dataset, batch_size=batch_size, shuffle=True)]
+        valid_loader = [DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)]
     elif kfolds>1:
-        skf = StratifiedKFold(n_splits=kfolds, random_state=None, shuffle=False)
+        train_loader = []
+        valid_loader = []
+        skf = StratifiedKFold(n_splits=kfolds, random_state=seed, shuffle=True)
+        for train_indices, valid_indices in skf.split(train_texts, train_labels):
+            train_loader.append(DataLoader(DescriptionDataset(train_texts[train_indices], train_labels[train_indices], tokenizer), batch_size=batch_size, shuffle=True))
+            valid_loader.append(DataLoader(DescriptionDataset(train_texts[valid_indices], train_labels[valid_indices], tokenizer), batch_size=batch_size, shuffle=True))
+            
+    test_dataset = DescriptionDataset(test_texts, None, tokenizer)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
     return train_loader, valid_loader, test_loader
@@ -68,4 +75,4 @@ def remove_html_tags(df, parser="lxml"):
     for i in range(len(results)):
         results[i] = re.sub("([a-z])</li>", "\\1.</li>", results[i].replace("<li> ", "<li>").replace(" </li>", "</li>")).replace("</li>", " </li>").replace("\\", "")
         results[i] = bs4.BeautifulSoup(results[i], parser).get_text()
-    return results.tolist()
+    return results

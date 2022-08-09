@@ -7,7 +7,7 @@ from transformers import BertForSequenceClassification, BertModel, BertConfig
 
 
 class LitBertForSequenceClassification(pl.LightningModule):
-    def __init__(self, model_name:str, dirpath, lr:float, dropout:float=0., num_labels:int=4):
+    def __init__(self, model_name:str, dirpath, lr:float, dropout:float=0., fold_id:int=0, num_labels:int=4):
         super().__init__()
         self.save_hyperparameters()
 
@@ -52,7 +52,7 @@ class LitBertForSequenceClassification(pl.LightningModule):
         # output = self.bert_sc(**batch)
         # loss = output.loss
         loss, logits = self(**batch)
-        self.log(f'{prefix}_loss', loss)
+        self.log(f'{prefix}_loss{self.hparams.fold_id}', loss)
         return loss, logits
     
         
@@ -60,13 +60,13 @@ class LitBertForSequenceClassification(pl.LightningModule):
         labels = batch["labels"]
         labels_predicted = logits.argmax(-1)
         self.accuracy(labels_predicted, labels)
-        self.log(f'{prefix}_accuracy', self.accuracy, on_epoch=True)
+        self.log(f'{prefix}_accuracy{self.hparams.fold_id}', self.accuracy, on_epoch=True)
         
         
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         _, logits = self(**batch)
         labels_predicted = logits.argmax(-1)
-        return labels_predicted
+        return logits
 
         
     def configure_optimizers(self):
