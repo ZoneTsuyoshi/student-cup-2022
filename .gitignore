@@ -1,5 +1,7 @@
 # data privacy
 data/
+results/
+src/lightning_logs/
 
 # General
 .DS_Store
