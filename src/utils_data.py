@@ -53,18 +53,21 @@ def get_dataset(config):
         valid_dataset = DescriptionDataset(valid_texts, valid_labels, tokenizer)
         train_loader = [DataLoader(train_dataset, batch_size=batch_size, shuffle=True)]
         valid_loader = [DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)]
+        valid_labels = [valid_labels]
     elif kfolds>1:
         train_loader = []
         valid_loader = []
+        valid_labels = []
         skf = StratifiedKFold(n_splits=kfolds, random_state=seed, shuffle=True)
         for train_indices, valid_indices in skf.split(train_texts, train_labels):
             train_loader.append(DataLoader(DescriptionDataset(train_texts[train_indices], train_labels[train_indices], tokenizer), batch_size=batch_size, shuffle=True))
             valid_loader.append(DataLoader(DescriptionDataset(train_texts[valid_indices], train_labels[valid_indices], tokenizer), batch_size=batch_size, shuffle=True))
+            valid_labels.append(train_labels[valid_indices])
             
     test_dataset = DescriptionDataset(test_texts, None, tokenizer)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
-    return train_loader, valid_loader, test_loader
+    return train_loader, valid_loader, test_loader, valid_labels
     
     
     

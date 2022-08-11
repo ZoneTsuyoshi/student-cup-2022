@@ -78,11 +78,11 @@ class LitBertForSequenceClassification(pl.LightningModule):
         
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         _, logits = self(**batch)
-        if "labels" in batch.keys():
-            labels_predicted = logits.argmax(-1)
-            return self.confmat(labels_predicted, batch["labels"])
-        else:
-            return logits
+        # if "labels" in batch.keys():
+        #     labels_predicted = logits.argmax(-1)
+        #     return self.confmat(labels_predicted, batch["labels"])
+        # else:
+        return logits
 
     
     # def on_predict_epoch_end(self, predict_epoch_outputs):

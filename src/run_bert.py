@@ -12,6 +12,7 @@ from utils_train import LitBertForSequenceClassification
 
 
 def main(config, dirpath):
+    n_labels = 4
     epoch = config["train"]["epoch"]
     gpu = config["train"]["gpu"]
     seed = config["train"]["seed"]
@@ -33,7 +34,7 @@ def main(config, dirpath):
         torch.cuda.manual_seed(seed)
     np.random.seed(seed)
     
-    train_loader_list, valid_loader_list, test_loader = get_dataset(config)
+    train_loader_list, valid_loader_list, test_loader, valid_labels_list = get_dataset(config)
     comet_logger = pl.loggers.CometLogger(workspace=os.environ.get("zonetsuyoshi"), save_dir=dirpath, project_name="student-cup-2022")
     best_model_path_list = []
     for i, (train_loader, valid_loader) in enumerate(zip(train_loader_list, valid_loader_list)):
@@ -44,16 +45,22 @@ def main(config, dirpath):
         best_model_path_list.append(checkpoint.best_model_path)
     
     test_logits = []
-    confmat = np.zeros([4,4])
+    confmat = np.zeros([n_labels, n_labels])
+    f1macro = 0
     # best_model_path_list = glob.glob(os.path.join(dirpath, "*.ckpt"))
-    for model_path, valid_loader in zip(best_model_path_list, valid_loader_list):
+    for model_path, valid_loader, valid_labels in zip(best_model_path_list, valid_loader_list, valid_labels_list):
         model = LitBertForSequenceClassification.load_from_checkpoint(model_path)
         # model.bert.save_pretrained(dirpath)
         trainer = pl.Trainer()
-        confmat += torch.stack(trainer.predict(model, valid_loader)).sum(0).detach().cpu().numpy()
+        # confmat += torch.stack(trainer.predict(model, valid_loader)).sum(0).detach().cpu().numpy()
+        valid_logits = torch.cat(trainer.predict(model, valid_loader)).detach().cpu().numpy()
+        valid_predicted_labels = np.argmax(valid_logits, -1)
+        confmat += metrics.confusion_matrix(valid_labels, valid_predicted_labels)
+        f1macro += metrics.f1_score(valid_labels, valid_predicted_labels, average="macro")
         test_logits.append(torch.cat(trainer.predict(model, test_loader)).detach().cpu().numpy())
+    comet_logger.log_metrics({"f1macro":f1macro/kfolds})
     fig, ax = plt.subplots(figsize=(5,5))
-    sns.heatmap(confmat / confmat.sum(1)[None], cmap="Blues", ax=ax, vmin=0, vmax=1, square=True, annot=True, fmt=".2f")
+    sns.heatmap(confmat / confmat.sum(1)[:,None], cmap="Blues", ax=ax, vmin=0, vmax=1, square=True, annot=True, fmt=".2f")
     ax.set_xlabel("Predicted"); ax.set_ylabel("True"); comet_logger.experiment.log_figure("confusion matrix", fig)
     labels_predicted = np.argmax(np.array(test_logits).sum(0), -1)
     pd.DataFrame(np.array([np.arange(1516, 3033), labels_predicted+1]).T).to_csv(os.path.join(dirpath, "submission.csv"), header=False, index=False)
