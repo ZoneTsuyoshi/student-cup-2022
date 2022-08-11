@@ -1,14 +1,17 @@
 {
-    "valid_rate":0.2,
-    "kfolds":2,
-    "epoch":1,
-    "batch_size":16,
-    "gpu":0,
-    "seed":0,
+    "train":{
+        "valid_rate":0.2,
+        "kfolds":1,
+        "epoch":1,
+        "batch_size":16,
+        "gpu":0,
+        "seed":0
+    },
     
     "network":{
         "model_name":"bert-base-cased",
-        "lr":1e-4,
-        "dropout":0
+        "lr":2e-5,
+        "dropout":0,
+        "weight_decay":0.01
     }
 }

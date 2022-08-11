@@ -3,12 +3,12 @@ import pandas as pd
 from sklearn.model_selection import train_test_split, StratifiedKFold
 import torch
 from torch.utils.data import DataLoader, random_split, Dataset, Subset
-from transformers import BertTokenizer
+from transformers import AutoTokenizer
 
 
 
 class DescriptionDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer:BertTokenizer, max_token_len:int=512):
+    def __init__(self, texts, labels, tokenizer:AutoTokenizer, max_token_len:int=512):
         self.tokenizer = tokenizer
         self.texts = texts
         self.labels = labels
@@ -32,10 +32,10 @@ class DescriptionDataset(Dataset):
 
 def get_dataset(config):
     model_name = config["network"]["model_name"]
-    valid_rate = config["valid_rate"]
-    batch_size = config["batch_size"]
-    kfolds = config["kfolds"]
-    seed = config["seed"]
+    valid_rate = config["train"]["valid_rate"]
+    batch_size = config["train"]["batch_size"]
+    kfolds = config["train"]["kfolds"]
+    seed = config["train"]["seed"]
     
     train_df = pd.read_csv("../data/train.csv", index_col=0) # id, description, jopflag
     test_df = pd.read_csv("../data/test.csv", index_col=0) # id, description
@@ -44,7 +44,7 @@ def get_dataset(config):
     train_labels = train_df["jobflag"].values - 1
     
     # tokenizer
-    tokenizer = BertTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
     
     # loader
     if kfolds==1:

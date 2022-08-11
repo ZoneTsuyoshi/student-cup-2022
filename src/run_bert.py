@@ -1,6 +1,9 @@
 import argparse, datetime, json, os, glob
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn import metrics
 import torch
 import pytorch_lightning as pl
 
@@ -9,10 +12,10 @@ from utils_train import LitBertForSequenceClassification
 
 
 def main(config, dirpath):
-    epoch = config["epoch"]
-    gpu = config["gpu"]
-    seed = config["seed"]
-    kfolds = config["kfolds"]
+    epoch = config["train"]["epoch"]
+    gpu = config["train"]["gpu"]
+    seed = config["train"]["seed"]
+    kfolds = config["train"]["kfolds"]
     # config["network"]["dirpath"] = dirpath
     
     if not os.path.exists(dirpath.rsplit("/",1)[0]):
@@ -32,22 +35,27 @@ def main(config, dirpath):
     
     train_loader_list, valid_loader_list, test_loader = get_dataset(config)
     comet_logger = pl.loggers.CometLogger(workspace=os.environ.get("zonetsuyoshi"), save_dir=dirpath, project_name="student-cup-2022")
+    best_model_path_list = []
     for i, (train_loader, valid_loader) in enumerate(zip(train_loader_list, valid_loader_list)):
         model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=i)
         checkpoint = pl.callbacks.ModelCheckpoint(monitor=f'valid_loss{i}', mode='min', save_top_k=1, save_weights_only=True, dirpath=dirpath, filename=f"fold{i}" + "{epoch}-{step}.ckpt")
         trainer = pl.Trainer(accelerator="gpu", devices=[gpu], max_epochs=epoch, callbacks=[checkpoint], logger=comet_logger)
         trainer.fit(model, train_loader, valid_loader)
+        best_model_path_list.append(checkpoint.best_model_path)
     
-    logits = []
-    model_path_list = glob.glob(os.path.join(dirpath, "*.ckpt"))
-    for model_path in model_path_list:
-        # best_model_path = os.path.join("../results/09/epoch=0-step=202.ckpt")
-        # model = LitBertForSequenceClassification(model_name, dirpath, lr).load_from_checkpoint(best_model_path)
+    test_logits = []
+    confmat = np.zeros([4,4])
+    # best_model_path_list = glob.glob(os.path.join(dirpath, "*.ckpt"))
+    for model_path, valid_loader in zip(best_model_path_list, valid_loader_list):
         model = LitBertForSequenceClassification.load_from_checkpoint(model_path)
         # model.bert.save_pretrained(dirpath)
         trainer = pl.Trainer()
-        logits.append(torch.cat(trainer.predict(model, test_loader)).detach().cpu().numpy())
-    labels_predicted = np.argmax(np.array(logits).sum(0), -1)
+        confmat += torch.stack(trainer.predict(model, valid_loader)).sum(0).detach().cpu().numpy()
+        test_logits.append(torch.cat(trainer.predict(model, test_loader)).detach().cpu().numpy())
+    fig, ax = plt.subplots(figsize=(5,5))
+    sns.heatmap(confmat / confmat.sum(1)[None], cmap="Blues", ax=ax, vmin=0, vmax=1, square=True, annot=True, fmt=".2f")
+    ax.set_xlabel("Predicted"); ax.set_ylabel("True"); comet_logger.experiment.log_figure("confusion matrix", fig)
+    labels_predicted = np.argmax(np.array(test_logits).sum(0), -1)
     pd.DataFrame(np.array([np.arange(1516, 3033), labels_predicted+1]).T).to_csv(os.path.join(dirpath, "submission.csv"), header=False, index=False)
     
     
