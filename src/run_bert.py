@@ -81,7 +81,8 @@ if __name__ == "__main__":
     f.close()
     
     model_name = config["network"]["model_name"]
+    number_of_date = config["train"]["number_of_date"]
     dt_now = datetime.datetime.now()
-    # dirpath = os.path.join("../results", "{:02}{:02}{:02}-{}".format(dt_now.day, dt_now.hour, dt_now.minute, model_name))
-    dirpath = os.path.join("../results", "{:02}".format(dt_now.day))
+    dirpath = os.path.join("../results", "{:02}-{}{}".format(dt_now.day, model_name, number_of_date))
+    # dirpath = os.path.join("../results", "{:02}".format(dt_now.day))
     main(config, dirpath)

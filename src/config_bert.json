@@ -1,15 +1,18 @@
 {
     "train":{
+        "number_of_date":"2",
         "valid_rate":0.2,
-        "kfolds":1,
-        "epoch":1,
+        "kfolds":4,
+        "epoch":20,
         "batch_size":16,
-        "gpu":0,
-        "seed":0
+        "gpu":1,
+        "seed":0,
+        "da":"l"
     },
     
     "network":{
         "model_name":"bert-base-cased",
+        "loss":"focal",
         "lr":2e-5,
         "dropout":0,
         "weight_decay":0.01

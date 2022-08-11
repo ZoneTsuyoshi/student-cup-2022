@@ -3,11 +3,12 @@ from torch import nn
 import torchmetrics as tm
 import pytorch_lightning as pl
 from transformers import AutoModel, AutoConfig
+from utils_loss import FocalLoss
 # from utils_metrics import *
 
 
 class LitBertForSequenceClassification(pl.LightningModule):
-    def __init__(self, model_name:str, dirpath, lr:float, dropout:float=0., weight_decay=0.01, fold_id:int=0, num_labels:int=4):
+    def __init__(self, model_name:str, dirpath, lr:float, dropout:float=0., weight_decay=0.01, loss="CEL", fold_id:int=0, num_labels:int=4):
         super().__init__()
         self.save_hyperparameters()
 
@@ -28,7 +29,10 @@ class LitBertForSequenceClassification(pl.LightningModule):
         logits = self.linear(self.dropout(bout[1]))
         loss = None
         if labels is not None:
-            loss_fn = torch.nn.CrossEntropyLoss()
+            if self.hparams.loss=="CEL":
+                loss_fn = torch.nn.CrossEntropyLoss()
+            elif self.hparams.loss=="focal":
+                loss_fn = FocalLoss(gamma=2)
             loss = loss_fn(logits, labels)
         return loss, logits
         
