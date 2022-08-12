@@ -1,4 +1,4 @@
-import os, sys, json, glob, time, shutil, copy, subprocess, math, deeptime, argparse
+import os, sys, json, glob, time, shutil, copy, subprocess, math, datetime, argparse
 import multiprocessing as mp
 import numpy as np
 import matplotlib.pyplot as plt 
@@ -15,7 +15,7 @@ def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_m
     gpu_id = config["train"]["gpu"]
     
 
-    gs_dict = {"model_name"}
+    gs_dict = {"lr":[1e-5, 4e-5]}
 
 
     gs_key = list(gs_dict.keys()) # list of keys for grid search

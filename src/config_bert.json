@@ -7,7 +7,7 @@
         "batch_size":16,
         "gradient_clipping":1,
         "warmup_rate":0.1,
-        "gpu":0,
+        "gpu":2,
         "seed":0,
         "weight":false,
         "da":"m",
