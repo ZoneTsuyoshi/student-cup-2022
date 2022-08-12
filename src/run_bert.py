@@ -19,6 +19,7 @@ def main(config, dirpath):
     gpu = config["train"]["gpu"]
     seed = config["train"]["seed"]
     kfolds = config["train"]["kfolds"]
+    warmup_rate = config["train"]["warmup_rate"]
     # config["network"]["dirpath"] = dirpath
     
     if not os.path.exists(dirpath.rsplit("/",1)[0]):
@@ -40,7 +41,9 @@ def main(config, dirpath):
     comet_logger = pl.loggers.CometLogger(workspace=os.environ.get("zonetsuyoshi"), save_dir=dirpath, project_name="student-cup-2022")
     best_model_path_list = []
     for i, (train_loader, valid_loader, weight) in enumerate(zip(train_loader_list, valid_loader_list, weight_list)):
-        model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=i, weight=weight)
+        total_steps = epoch * len(train_loader)
+        warmup_steps = warmup_rate * total_steps
+        model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=i, weight=weight, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
         checkpoint = pl.callbacks.ModelCheckpoint(monitor=f'valid_loss{i}', mode='min', save_top_k=1, save_weights_only=True, dirpath=dirpath, filename=f"fold{i}" + "{epoch}-{step}.ckpt")
         trainer = pl.Trainer(accelerator="gpu", devices=[gpu], max_epochs=epoch, callbacks=[checkpoint], logger=comet_logger)
         trainer.fit(model, train_loader, valid_loader)
@@ -83,6 +86,7 @@ if __name__ == "__main__":
     f.close()
     
     model_name = config["network"]["model_name"]
+    if "/" in model_name: model_name = model_name.rsplit("/", 1)[1]
     number_of_date = config["train"]["number_of_date"]
     dt_now = datetime.datetime.now()
     dirpath = os.path.join("../results", "{:02}-{}{}".format(dt_now.day, model_name, number_of_date))

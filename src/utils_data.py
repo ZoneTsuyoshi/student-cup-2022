@@ -11,24 +11,20 @@ from transformers import AutoTokenizer
 
 
 class DescriptionDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer:AutoTokenizer, max_token_len:int=512):
-        self.tokenizer = tokenizer
-        self.texts = texts
+    def __init__(self, input_ids:torch.Tensor, attention_mask:torch.Tensor, labels=None):
+        self.input_ids = input_ids
+        self.attention_mask = attention_mask
         self.labels = labels
-        self.max_token_len = max_token_len
         
         
     def __len__(self):
-        return len(self.texts)
+        return len(self.input_ids)
     
     
     def __getitem__(self, index: int):
-        data = self.texts[index]
-        encoding = self.tokenizer(data, add_special_tokens=True, max_length=self.max_token_len, return_token_type_ids=False,
-                                  padding="max_length", truncation=True, return_attention_mask=True, return_tensors='pt')
-        encoding = {k:v[0] for k,v in encoding.items()}
+        encoding = {"input_ids":self.input_ids[index], "attention_mask":self.attention_mask[index]}
         if self.labels is not None:
-            encoding["labels"] = torch.tensor(self.labels[index])
+            encoding["labels"] = self.labels[index]
         return encoding
 
 
@@ -41,12 +37,13 @@ def get_dataset(config):
     kfolds = config["train"]["kfolds"]
     seed = config["train"]["seed"]
     da_method = config["train"]["da"]
+    mask_ratio = config["train"]["mask_ratio"]
     random.seed(seed)
     
     train_df = pd.read_csv("../data/train.csv", index_col=0) # id, description, jopflag
     test_df = pd.read_csv("../data/test.csv", index_col=0) # id, description
     train_texts = adjust_texts(train_df["description"].values)
-    test_texts = remove_html_tags(adjust_texts(test_df["description"].values))
+    test_texts = adjust_texts(test_df["description"].values)
     train_labels = train_df["jobflag"].values - 1
     
     # tokenizer
@@ -55,9 +52,9 @@ def get_dataset(config):
     # loader
     weight = None
     if kfolds==1:
-        train_texts, valid_texts, train_labels, valid_labels = train_test_split(remove_html_tags(train_texts), train_labels, test_size=valid_rate, stratify=train_labels)
-        train_dataset = DescriptionDataset(train_texts, train_labels, tokenizer)
-        valid_dataset = DescriptionDataset(valid_texts, valid_labels, tokenizer)
+        train_texts, valid_texts, train_labels, valid_labels = train_test_split(train_texts, train_labels, test_size=valid_rate, stratify=train_labels)
+        train_dataset = DescriptionDataset(**embed_and_augment(tokenizer, train_texts, train_labels, da_method, mask_ratio))
+        valid_dataset = DescriptionDataset(**embed_and_augment(tokenizer, valid_texts, valid_labels))
         train_loader = [DataLoader(train_dataset, batch_size=batch_size, shuffle=True)]
         valid_loader = [DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)]
         valid_labels = [valid_labels]
@@ -67,20 +64,19 @@ def get_dataset(config):
         if weight_on: weight = []
         skf = StratifiedKFold(n_splits=kfolds, random_state=seed, shuffle=True)
         for train_indices, valid_indices in skf.split(train_texts, train_labels):
-            da_texts, da_labels = data_augmentation(train_texts[train_indices], train_labels[train_indices])
-            train_loader.append(DataLoader(DescriptionDataset(da_texts, da_labels, tokenizer), batch_size=batch_size, shuffle=True))
-            valid_loader.append(DataLoader(DescriptionDataset(remove_html_tags(train_texts[valid_indices]), train_labels[valid_indices], tokenizer), batch_size=batch_size, shuffle=False))
+            train_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[train_indices], train_labels[train_indices], da_method, mask_ratio)), batch_size=batch_size, shuffle=True))
+            valid_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[valid_indices], train_labels[valid_indices])), batch_size=batch_size, shuffle=False))
             valid_labels.append(train_labels[valid_indices])
             if weight_on: weight.append(torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels[train_indices]), dtype=torch.float32))
             
-    test_dataset = DescriptionDataset(test_texts, None, tokenizer)
+    test_dataset = DescriptionDataset(**embed_and_augment(tokenizer, test_texts))
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
     return train_loader, valid_loader, test_loader, valid_labels, weight
     
     
     
-def data_augmentation(texts, labels, da_method="l"):
+def embed_and_augment(tokenizer, texts, labels=None, da_method=None, mask_ratio=0.1):
     """
     texts, labels: ndarray
     
@@ -89,11 +85,23 @@ def data_augmentation(texts, labels, da_method="l"):
         s: transform synonyms
         b: transform by BERT
         r: transform by RoBERTa
+        m: mask words
     """
+    # tokenizer
+    tokenizer_setting = {"add_special_tokens":True, "max_length":512, "return_token_type_ids":False,
+                         "padding":"max_length", "truncation":True, "return_attention_mask":True, "return_tensors":'pt'}
+    
+    if labels is None:
+        encoding = tokenizer(remove_html_tags(texts).tolist(), **tokenizer_setting)
+        return encoding
     if da_method is None:
-        return texts, labels
+        encoding = tokenizer(remove_html_tags(texts).tolist(), **tokenizer_setting)
+        encoding["labels"] = torch.tensor(labels.tolist())
+        return encoding
     else:
-        new_texts = remove_html_tags(texts).tolist()
+        encoding = tokenizer(remove_html_tags(texts).tolist(), **tokenizer_setting)
+        input_ids = [i for i in encoding["input_ids"]]
+        attention_mask = [i for i in encoding["attention_mask"]]
         new_labels = labels.tolist()
         unique_labels, counts = np.unique(labels, return_counts=True)
         max_count = counts.max()
@@ -118,14 +126,24 @@ def data_augmentation(texts, labels, da_method="l"):
                 if np.any([a in da_method for a in ["s", "b", "r"]]):
                     da_text = aug.augment(da_text)[0]
                     counter_flag = True
-                new_texts.append(da_text)
+                encoding = tokenizer(da_text, **tokenizer_setting)
+                current_input_ids = encoding["input_ids"][0]
+                if "m" in da_method:
+                    perms = np.random.choice(len(current_input_ids), int(mask_ratio*len(current_input_ids)), replace=False)
+                    for p in perms:
+                        current_input_ids[p] = tokenizer.mask_token_id
+                    counter_flag = True
+                
+                input_ids.append(current_input_ids)
+                attention_mask.append(encoding["attention_mask"][0])
                 new_labels.append(u)
                 inner_counter += 1
                 if inner_counter == c:
                     inner_counter = 0
                 if counter_flag:
                     counter += 1
-        return np.array(new_texts), np.array(new_labels)
+        encoding = {"input_ids":torch.stack(input_ids), "attention_mask":torch.stack(attention_mask), "labels":torch.tensor(new_labels)}
+        return encoding
                 
 
 def adjust_texts(arr):

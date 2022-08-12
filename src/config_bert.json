@@ -1,23 +1,27 @@
 {
     "train":{
-        "number_of_date":"4",
+        "number_of_date":"1",
         "valid_rate":0.25,
         "kfolds":1,
         "epoch":1,
         "batch_size":16,
-        "gpu":2,
+        "warmup_rate":0.1,
+        "gpu":0,
         "seed":0,
-        "weight":true,
-        "da":null
+        "weight":false,
+        "da":"m",
+        "mask_ratio":0.1
     },
     
     "network":{
-        "model_name":"roberta-base",
-        "loss":"CEL",
+        "model_name":"microsoft/deberta-v3-base",
+        "loss":"FLS",
         "gamma":1,
         "alpha":1,
+        "lb_smooth":0.1,
         "lr":2e-5,
         "dropout":0.1,
-        "weight_decay":0.1
+        "weight_decay":0.1,
+        "scheduler":"LSW"
     }
 }
