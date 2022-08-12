@@ -8,7 +8,7 @@ from utils_loss import FocalLoss
 
 
 class LitBertForSequenceClassification(pl.LightningModule):
-    def __init__(self, model_name:str, dirpath, lr:float, dropout:float=0., weight_decay=0.01, loss="CEL", fold_id:int=0, num_labels:int=4):
+    def __init__(self, model_name:str, dirpath, lr:float, dropout:float=0., weight_decay=0.01, loss="CEL", gamma=1, fold_id:int=0, num_labels:int=4):
         super().__init__()
         self.save_hyperparameters()
 
@@ -32,7 +32,7 @@ class LitBertForSequenceClassification(pl.LightningModule):
             if self.hparams.loss=="CEL":
                 loss_fn = torch.nn.CrossEntropyLoss()
             elif self.hparams.loss=="focal":
-                loss_fn = FocalLoss(gamma=2)
+                loss_fn = FocalLoss(gamma=self.hparams.gamma)
             loss = loss_fn(logits, labels)
         return loss, logits
         

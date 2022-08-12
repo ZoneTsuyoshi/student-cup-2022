@@ -2,6 +2,7 @@ import bs4, copy, re, random
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split, StratifiedKFold
+import nlpaug.augmenter.word as naw
 import torch
 from torch.utils.data import DataLoader, random_split, Dataset, Subset
 from transformers import AutoTokenizer
@@ -64,7 +65,7 @@ def get_dataset(config):
         skf = StratifiedKFold(n_splits=kfolds, random_state=seed, shuffle=True)
         for train_indices, valid_indices in skf.split(train_texts, train_labels):
             da_texts, da_labels = data_augmentation(train_texts[train_indices], train_labels[train_indices])
-            train_loader.append(DataLoader(DescriptionDataset(remove_html_tags(da_texts), da_labels, tokenizer), batch_size=batch_size, shuffle=True))
+            train_loader.append(DataLoader(DescriptionDataset(da_texts, da_labels, tokenizer), batch_size=batch_size, shuffle=True))
             valid_loader.append(DataLoader(DescriptionDataset(remove_html_tags(train_texts[valid_indices]), train_labels[valid_indices], tokenizer), batch_size=batch_size, shuffle=False))
             valid_labels.append(train_labels[valid_indices])
             
@@ -82,14 +83,19 @@ def data_augmentation(texts, labels, da_method="l"):
     da_method
         l: shuffle list items
         s: transform synonyms
+        b: transform by BERT
+        r: transform by RoBERTa
     """
     if da_method is None:
         return texts, labels
     else:
-        new_texts = texts.tolist()
+        new_texts = remove_html_tags(texts).tolist()
         new_labels = labels.tolist()
         unique_labels, counts = np.unique(labels, return_counts=True)
         max_count = counts.max()
+        if "s" in da_method: aug = naw.SynonymAug(aug_src='wordnet')
+        if "b" in da_method: aug = naw.ContextualWordEmbsAug(model_path='bert-base-uncased', action="substitute")
+        if "r" in da_method: aug = naw.ContextualWordEmbsAug(model_path='roberta-base', action="substitute")
         for u, c in zip(unique_labels, counts):
             now_texts = texts[labels==u]
             counter = c
@@ -104,6 +110,10 @@ def data_augmentation(texts, labels, da_method="l"):
                         da_text = "".join(da_text)
                     else:
                         counter_flag = False
+                da_text = remove_html_tags(da_text)
+                if np.any([a in da_method for a in ["s", "b", "r"]]):
+                    da_text = aug.augment(da_text)[0]
+                    counter_flag = True
                 new_texts.append(da_text)
                 new_labels.append(u)
                 inner_counter += 1
@@ -113,7 +123,6 @@ def data_augmentation(texts, labels, da_method="l"):
                     counter += 1
         return np.array(new_texts), np.array(new_labels)
                 
-    
 
 def adjust_texts(arr):
     results = copy.deepcopy(arr)
@@ -123,8 +132,11 @@ def adjust_texts(arr):
     
     
 def remove_html_tags(arr, parser="lxml"):
-    results = copy.deepcopy(arr)
-    for i in range(len(results)):
-        # results[i] = re.sub("([a-z])</li>", "\\1.</li>", results[i].replace("<li> ", "<li>").replace(" </li>", "</li>")).replace("</li>", " </li>").replace("\\", "")
-        results[i] = bs4.BeautifulSoup(results[i], parser).get_text()
-    return results
+    if type(arr)==str:
+        return bs4.BeautifulSoup(arr, parser).get_text()
+    else:
+        results = copy.deepcopy(arr)
+        for i in range(len(results)):
+            # results[i] = re.sub("([a-z])</li>", "\\1.</li>", results[i].replace("<li> ", "<li>").replace(" </li>", "</li>")).replace("</li>", " </li>").replace("\\", "")
+            results[i] = bs4.BeautifulSoup(results[i], parser).get_text()
+        return results

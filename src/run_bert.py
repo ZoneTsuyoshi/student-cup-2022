@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn import metrics
 import torch
+import torch.nn.functional as F
 import pytorch_lightning as pl
 
 from utils_data import get_dataset
@@ -44,7 +45,7 @@ def main(config, dirpath):
         trainer.fit(model, train_loader, valid_loader)
         best_model_path_list.append(checkpoint.best_model_path)
     
-    test_logits = []
+    test_probs = []
     confmat = np.zeros([n_labels, n_labels])
     f1macro = 0
     # best_model_path_list = glob.glob(os.path.join(dirpath, "*.ckpt"))
@@ -56,12 +57,12 @@ def main(config, dirpath):
         valid_predicted_labels = np.argmax(valid_logits, -1)
         confmat += metrics.confusion_matrix(valid_labels, valid_predicted_labels)
         f1macro += metrics.f1_score(valid_labels, valid_predicted_labels, average="macro")
-        test_logits.append(torch.cat(trainer.predict(model, test_loader)).detach().cpu().numpy())
+        test_probs.append(F.softmax(torch.cat(trainer.predict(model, test_loader))).detach().cpu().numpy())
     comet_logger.log_metrics({"f1macro":f1macro/kfolds})
     fig, ax = plt.subplots(figsize=(5,5))
     sns.heatmap(confmat / confmat.sum(1)[:,None], cmap="Blues", ax=ax, vmin=0, vmax=1, square=True, annot=True, fmt=".2f")
     ax.set_xlabel("Predicted"); ax.set_ylabel("True"); comet_logger.experiment.log_figure("confusion matrix", fig)
-    labels_predicted = np.argmax(np.array(test_logits).sum(0), -1)
+    labels_predicted = np.argmax(np.array(test_probs).sum(0), -1)
     pd.DataFrame(np.array([np.arange(1516, 3033), labels_predicted+1]).T).to_csv(os.path.join(dirpath, "submission.csv"), header=False, index=False)
     
     

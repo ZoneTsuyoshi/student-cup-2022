@@ -2,6 +2,7 @@
 data/
 results/
 src/lightning_logs/
+src/nohup.out
 
 # General
 .DS_Store
