@@ -20,6 +20,7 @@ def main(config, dirpath):
     seed = config["train"]["seed"]
     kfolds = config["train"]["kfolds"]
     warmup_rate = config["train"]["warmup_rate"]
+    gradient_clip_val = config["train"]["gradient_clipping"]
     # config["network"]["dirpath"] = dirpath
     
     if not os.path.exists(dirpath.rsplit("/",1)[0]):
@@ -39,13 +40,14 @@ def main(config, dirpath):
     
     train_loader_list, valid_loader_list, test_loader, valid_labels_list, weight_list = get_dataset(config)
     comet_logger = pl.loggers.CometLogger(workspace=os.environ.get("zonetsuyoshi"), save_dir=dirpath, project_name="student-cup-2022")
+    comet_logger.log_hyperparams(config["train"])
     best_model_path_list = []
     for i, (train_loader, valid_loader, weight) in enumerate(zip(train_loader_list, valid_loader_list, weight_list)):
         total_steps = epoch * len(train_loader)
         warmup_steps = warmup_rate * total_steps
         model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=i, weight=weight, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
         checkpoint = pl.callbacks.ModelCheckpoint(monitor=f'valid_loss{i}', mode='min', save_top_k=1, save_weights_only=True, dirpath=dirpath, filename=f"fold{i}" + "{epoch}-{step}.ckpt")
-        trainer = pl.Trainer(accelerator="gpu", devices=[gpu], max_epochs=epoch, callbacks=[checkpoint], logger=comet_logger)
+        trainer = pl.Trainer(accelerator="gpu", devices=[gpu], max_epochs=epoch, gradient_clip_val=gradient_clip_val, callbacks=[checkpoint], logger=comet_logger)
         trainer.fit(model, train_loader, valid_loader)
         best_model_path_list.append(checkpoint.best_model_path)
     
