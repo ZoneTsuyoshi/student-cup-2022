@@ -52,7 +52,6 @@ def main(config, dirpath):
         model = LitBertForSequenceClassification.load_from_checkpoint(model_path)
         # model.bert.save_pretrained(dirpath)
         trainer = pl.Trainer()
-        # confmat += torch.stack(trainer.predict(model, valid_loader)).sum(0).detach().cpu().numpy()
         valid_logits = torch.cat(trainer.predict(model, valid_loader)).detach().cpu().numpy()
         valid_predicted_labels = np.argmax(valid_logits, -1)
         confmat += metrics.confusion_matrix(valid_labels, valid_predicted_labels)

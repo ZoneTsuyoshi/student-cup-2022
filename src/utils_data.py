@@ -65,7 +65,7 @@ def get_dataset(config):
         for train_indices, valid_indices in skf.split(train_texts, train_labels):
             da_texts, da_labels = data_augmentation(train_texts[train_indices], train_labels[train_indices])
             train_loader.append(DataLoader(DescriptionDataset(remove_html_tags(da_texts), da_labels, tokenizer), batch_size=batch_size, shuffle=True))
-            valid_loader.append(DataLoader(DescriptionDataset(remove_html_tags(train_texts[valid_indices]), train_labels[valid_indices], tokenizer), batch_size=batch_size, shuffle=True))
+            valid_loader.append(DataLoader(DescriptionDataset(remove_html_tags(train_texts[valid_indices]), train_labels[valid_indices], tokenizer), batch_size=batch_size, shuffle=False))
             valid_labels.append(train_labels[valid_indices])
             
     test_dataset = DescriptionDataset(test_texts, None, tokenizer)
