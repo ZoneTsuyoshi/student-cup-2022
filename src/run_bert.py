@@ -14,6 +14,7 @@ from utils_train import LitBertForSequenceClassification
 
 def main(config, dirpath):
     n_labels = 4
+    job_list = ["DS", "MLE", "SE", "C"]
     epoch = config["train"]["epoch"]
     gpu = config["train"]["gpu"]
     seed = config["train"]["seed"]
@@ -61,6 +62,7 @@ def main(config, dirpath):
     comet_logger.log_metrics({"f1macro":f1macro/kfolds})
     fig, ax = plt.subplots(figsize=(5,5))
     sns.heatmap(confmat / confmat.sum(1)[:,None], cmap="Blues", ax=ax, vmin=0, vmax=1, square=True, annot=True, fmt=".2f")
+    ax.set_xticklabels(job_list); ax.set_yticklabels(job_list)
     ax.set_xlabel("Predicted"); ax.set_ylabel("True"); comet_logger.experiment.log_figure("confusion matrix", fig)
     labels_predicted = np.argmax(np.array(test_probs).sum(0), -1)
     pd.DataFrame(np.array([np.arange(1516, 3033), labels_predicted+1]).T).to_csv(os.path.join(dirpath, "submission.csv"), header=False, index=False)

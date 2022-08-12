@@ -52,7 +52,7 @@ def get_dataset(config):
     
     # loader
     if kfolds==1:
-        train_texts, valid_texts, train_labels, valid_labels = train_test_split(train_texts, train_labels, test_size=valid_rate, stratify=train_labels)
+        train_texts, valid_texts, train_labels, valid_labels = train_test_split(remove_html_tags(train_texts), train_labels, test_size=valid_rate, stratify=train_labels)
         train_dataset = DescriptionDataset(train_texts, train_labels, tokenizer)
         valid_dataset = DescriptionDataset(valid_texts, valid_labels, tokenizer)
         train_loader = [DataLoader(train_dataset, batch_size=batch_size, shuffle=True)]
