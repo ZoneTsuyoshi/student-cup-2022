@@ -2,8 +2,8 @@
     "train":{
         "number_of_date":"1",
         "valid_rate":0.25,
-        "kfolds":1,
-        "epoch":1,
+        "kfolds":4,
+        "epoch":20,
         "batch_size":16,
         "warmup_rate":0.1,
         "gpu":0,

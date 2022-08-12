@@ -50,7 +50,6 @@ def get_dataset(config):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     
     # loader
-    weight = None
     if kfolds==1:
         train_texts, valid_texts, train_labels, valid_labels = train_test_split(train_texts, train_labels, test_size=valid_rate, stratify=train_labels)
         train_dataset = DescriptionDataset(**embed_and_augment(tokenizer, train_texts, train_labels, da_method, mask_ratio))
@@ -58,16 +57,21 @@ def get_dataset(config):
         train_loader = [DataLoader(train_dataset, batch_size=batch_size, shuffle=True)]
         valid_loader = [DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)]
         valid_labels = [valid_labels]
-        if weight_on: weight = [torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels), dtype=torch.float32)]
+        if weight_on:
+            weight = [torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels), dtype=torch.float32)]
+        else:
+            weight = [None]
     elif kfolds>1:
-        train_loader, valid_loader, valid_labels = [], [], []
-        if weight_on: weight = []
+        train_loader, valid_loader, valid_labels, weight = [], [], [], []
         skf = StratifiedKFold(n_splits=kfolds, random_state=seed, shuffle=True)
         for train_indices, valid_indices in skf.split(train_texts, train_labels):
             train_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[train_indices], train_labels[train_indices], da_method, mask_ratio)), batch_size=batch_size, shuffle=True))
             valid_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[valid_indices], train_labels[valid_indices])), batch_size=batch_size, shuffle=False))
             valid_labels.append(train_labels[valid_indices])
-            if weight_on: weight.append(torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels[train_indices]), dtype=torch.float32))
+            if weight_on: 
+                weight.append(torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels[train_indices]), dtype=torch.float32))
+            else:
+                weight.append(None)
             
     test_dataset = DescriptionDataset(**embed_and_augment(tokenizer, test_texts))
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
