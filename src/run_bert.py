@@ -36,11 +36,11 @@ def main(config, dirpath):
         torch.cuda.manual_seed(seed)
     np.random.seed(seed)
     
-    train_loader_list, valid_loader_list, test_loader, valid_labels_list = get_dataset(config)
+    train_loader_list, valid_loader_list, test_loader, valid_labels_list, weight_list = get_dataset(config)
     comet_logger = pl.loggers.CometLogger(workspace=os.environ.get("zonetsuyoshi"), save_dir=dirpath, project_name="student-cup-2022")
     best_model_path_list = []
-    for i, (train_loader, valid_loader) in enumerate(zip(train_loader_list, valid_loader_list)):
-        model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=i)
+    for i, (train_loader, valid_loader, weight) in enumerate(zip(train_loader_list, valid_loader_list, weight_list)):
+        model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=i, weight=weight)
         checkpoint = pl.callbacks.ModelCheckpoint(monitor=f'valid_loss{i}', mode='min', save_top_k=1, save_weights_only=True, dirpath=dirpath, filename=f"fold{i}" + "{epoch}-{step}.ckpt")
         trainer = pl.Trainer(accelerator="gpu", devices=[gpu], max_epochs=epoch, callbacks=[checkpoint], logger=comet_logger)
         trainer.fit(model, train_loader, valid_loader)

@@ -1,18 +1,19 @@
 {
     "train":{
-        "number_of_date":"3",
+        "number_of_date":"4",
         "valid_rate":0.25,
         "kfolds":1,
         "epoch":1,
         "batch_size":16,
-        "gpu":1,
+        "gpu":2,
         "seed":0,
+        "weight":true,
         "da":null
     },
     
     "network":{
         "model_name":"roberta-base",
-        "loss":"dice",
+        "loss":"CEL",
         "gamma":1,
         "alpha":1,
         "lr":2e-5,

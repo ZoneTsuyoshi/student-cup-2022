@@ -3,9 +3,9 @@ from torch import nn
 import torch.nn.functional as F
 
 
-def get_loss_fn(loss_name="CEL", gamma=1, alpha=1):
+def get_loss_fn(loss_name="CEL", gamma=1, alpha=1, weight=None):
     if loss_name in ["cross-entropy", "CEL", "CE"]:
-        loss_fn = nn.CrossEntropyLoss()
+        loss_fn = nn.CrossEntropyLoss(weight)
     elif loss_name in ["focal", "FL"]:
         loss_fn = FocalLoss(gamma)
     elif loss_name in ["dice", "DL"]:
@@ -51,7 +51,7 @@ class SelfAdjDiceLoss(torch.nn.Module):
         - targets: `(N)` where each value is in [0, C - 1]
     """
 
-    def __init__(self, alpha: float = 1.0, gamma: float = 1.0, reduction: str = "mean") -> None:
+    def __init__(self, alpha:float=1.0, gamma:float=1.0, reduction:str="mean") -> None:
         super().__init__()
         self.alpha = alpha
         self.gamma = gamma
