@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import DataLoader, random_split, Dataset, Subset
 from transformers import AutoTokenizer
 
-
+        
 
 class DescriptionDataset(Dataset):
     def __init__(self, input_ids:torch.Tensor, attention_mask:torch.Tensor, labels=None):
@@ -26,10 +26,29 @@ class DescriptionDataset(Dataset):
         if self.labels is not None:
             encoding["labels"] = self.labels[index]
         return encoding
-
-
-
-def get_dataset(config):
+    
+    
+    
+def create_cv_data(config):
+    kfolds = config["kfolds"]
+    seed = config["seed"]
+    
+    train_df = pd.read_csv("../data/train.csv", index_col=0) # id, description, jopflag
+    train_texts = adjust_texts(train_df["description"].values)
+    train_labels = train_df["jobflag"].values
+    cv_df = train_df.copy()
+    cv_df["description"] = train_texts
+    cv_df["jobflag"] = train_labels
+    cv_df["fold"] = np.zeros(len(cv_df), dtype=int)
+    
+    skf = StratifiedKFold(n_splits=kfolds, random_state=seed, shuffle=True)
+    for i, (train_indices, valid_indices) in enumerate(skf.split(train_texts, train_labels)):
+        cv_df.loc[valid_indices, "fold"] = i
+    cv_df.to_csv(f"../data/{kfolds}fold-seed{seed}.csv", index=True)
+    
+    
+    
+def get_train_data(config):
     model_name = config["network"]["model_name"]
     weight_on = config["train"]["weight"]
     valid_rate = config["train"]["valid_rate"]
@@ -40,43 +59,41 @@ def get_dataset(config):
     mask_ratio = config["train"]["mask_ratio"]
     random.seed(seed)
     
-    train_df = pd.read_csv("../data/train.csv", index_col=0) # id, description, jopflag
-    test_df = pd.read_csv("../data/test.csv", index_col=0) # id, description
-    train_texts = adjust_texts(train_df["description"].values)
-    test_texts = adjust_texts(test_df["description"].values)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    train_df = pd.read_csv(f"../data/{kfolds}fold-seed{seed}.csv", index_col=0)
+    train_texts = train_df["description"].values
     train_labels = train_df["jobflag"].values - 1
+
+    train_loader, valid_loader, valid_labels, weight = [], [], [], []
+    all_indices = np.arange(len(train_df))
+    for i in range(kfolds):
+        train_indices = all_indices[train_df["fold"]!=i]
+        valid_indices = all_indices[train_df["fold"]==i]
+        train_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[train_indices], train_labels[train_indices], da_method, mask_ratio)), batch_size=batch_size, shuffle=True))
+        valid_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[valid_indices], train_labels[valid_indices])), batch_size=batch_size, shuffle=False))
+        valid_labels.append(train_labels[valid_indices])
+        if weight_on: 
+            weight.append(torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels[train_indices]), dtype=torch.float32))
+        else:
+            weight.append(None)
+    
+    return train_loader, valid_loader, valid_labels, weight
+    
+    
+    
+def get_test_data(config):
+    model_name = config["network"]["model_name"]
+    batch_size = config["train"]["batch_size"]
+    
+    test_df = pd.read_csv("../data/test.csv", index_col=0) # id, description
+    test_texts = adjust_texts(test_df["description"].values)
     
     # tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    
-    # loader
-    if kfolds==1:
-        train_texts, valid_texts, train_labels, valid_labels = train_test_split(train_texts, train_labels, test_size=valid_rate, stratify=train_labels)
-        train_dataset = DescriptionDataset(**embed_and_augment(tokenizer, train_texts, train_labels, da_method, mask_ratio))
-        valid_dataset = DescriptionDataset(**embed_and_augment(tokenizer, valid_texts, valid_labels))
-        train_loader = [DataLoader(train_dataset, batch_size=batch_size, shuffle=True)]
-        valid_loader = [DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)]
-        valid_labels = [valid_labels]
-        if weight_on:
-            weight = [torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels), dtype=torch.float32)]
-        else:
-            weight = [None]
-    elif kfolds>1:
-        train_loader, valid_loader, valid_labels, weight = [], [], [], []
-        skf = StratifiedKFold(n_splits=kfolds, random_state=seed, shuffle=True)
-        for train_indices, valid_indices in skf.split(train_texts, train_labels):
-            train_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[train_indices], train_labels[train_indices], da_method, mask_ratio)), batch_size=batch_size, shuffle=True))
-            valid_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[valid_indices], train_labels[valid_indices])), batch_size=batch_size, shuffle=False))
-            valid_labels.append(train_labels[valid_indices])
-            if weight_on: 
-                weight.append(torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels[train_indices]), dtype=torch.float32))
-            else:
-                weight.append(None)
-            
     test_dataset = DescriptionDataset(**embed_and_augment(tokenizer, test_texts))
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
-    return train_loader, valid_loader, test_loader, valid_labels, weight
+    return test_loader
     
     
     
@@ -133,9 +150,10 @@ def embed_and_augment(tokenizer, texts, labels=None, da_method=None, mask_ratio=
                 encoding = tokenizer(da_text, **tokenizer_setting)
                 current_input_ids = encoding["input_ids"][0]
                 if "m" in da_method:
-                    perms = np.random.choice(len(current_input_ids), int(mask_ratio*len(current_input_ids)), replace=False)
+                    current_length = (current_input_ids > 0).sum().item() - 2
+                    perms = np.random.choice(current_length, int(mask_ratio*current_length), replace=False)
                     for p in perms:
-                        current_input_ids[p] = tokenizer.mask_token_id
+                        current_input_ids[p+1] = tokenizer.mask_token_id
                     counter_flag = True
                 
                 input_ids.append(current_input_ids)
@@ -154,6 +172,14 @@ def adjust_texts(arr):
     results = copy.deepcopy(arr)
     for i in range(len(results)):
         results[i] = re.sub("([a-z])</li>", "\\1.</li>", results[i].replace("<li> ", "<li>").replace(" </li>", "</li>")).replace("</li>", " </li>").replace("\\", "")
+        if "http" in results[i] or "u202f" in results[i]:
+            words = results[i].split(" ")
+            for i,w in enumerate(words):
+                if "http" in w:
+                    words[i] = "URL"
+                if "u202f" in w:
+                    words[i] = " ".join(w.split("u202f"))
+            results[i] = " ".join(words)
     return results
     
     

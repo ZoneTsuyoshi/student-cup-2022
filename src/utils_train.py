@@ -1,3 +1,4 @@
+import json
 import torch
 from torch import nn
 import torchmetrics as tm
@@ -85,3 +86,27 @@ class LitBertForSequenceClassification(pl.LightningModule):
         elif self.hparams.scheduler in ["CSW", "CSwW"]:
             scheduler = get_cosine_schedule_with_warmup(optimizer, self.hparams.num_warmup_steps, self.hparams.num_training_steps)
         return [optimizer], [scheduler]
+    
+    
+    
+    
+def select_hyperparameters(config):
+    model_name = config["network"]["model_name"]
+    
+    if "roberta" in model_name:
+        default_config_path = "default_cfgs/roberta-base.json"
+    elif "deberta-v3" in model_name:
+        default_config_path = "default_cfgs/deberta-v3-base.json"
+        
+    f = open(default_config_path, "r")
+    default_config = json.load(f)
+    f.close()
+        
+    for fkey in config.keys():
+        for key in config[fkey].keys():
+            if config[fkey][key] is None and key in default_config.keys():
+                config[fkey][key] = default_config[key]
+                
+    return config
+    
+        

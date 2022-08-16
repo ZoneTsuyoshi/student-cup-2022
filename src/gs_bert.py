@@ -15,7 +15,7 @@ def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_m
     gpu_id = config["train"]["gpu"]
     
 
-    gs_dict = {"lr":[1e-5, 4e-5]}
+    gs_dict = {"model_name":["microsoft/deberta-v3-base"], "lr":[1e-5, 2e-5]}
 
 
     gs_key = list(gs_dict.keys()) # list of keys for grid search
@@ -28,7 +28,7 @@ def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_m
         elif type(gs_dict[key])==dict:
             gs_key2 += list(gs_dict[key].keys())
     
-    dir_name = "{:02}_gs{}/".format(dt_now.day, number_of_date)
+    dir_name = "../results/{:02}_gs{}/".format(dt_now.day, number_of_date)
     if not os.path.exists(os.path.join("../results", dir_name)):
         os.mkdir(os.path.join("../results", dir_name))
     name_list = []

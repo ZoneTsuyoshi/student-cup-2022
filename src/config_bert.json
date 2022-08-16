@@ -6,7 +6,7 @@
         "epoch":10,
         "batch_size":16,
         "gradient_clipping":1,
-        "warmup_rate":0.1,
+        "warmup_rate":0,
         "gpu":2,
         "seed":0,
         "weight":false,
@@ -17,7 +17,7 @@
     "network":{
         "model_name":"microsoft/deberta-v3-base",
         "loss":"FLS",
-        "gamma":1,
+        "gamma":2,
         "alpha":1,
         "lb_smooth":0.1,
         "lr":2e-5,

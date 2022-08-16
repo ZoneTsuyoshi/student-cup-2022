@@ -1,0 +1,10 @@
+{
+    "epoch":1,
+    "batch_size":16,
+    "gradient_clipping":1,
+    "warmup_rate":0.1,
+    "lr":2e-5,
+    "dropout":0.1,
+    "weight_decay":0.01,
+    "scheduler":"LSW"
+}
