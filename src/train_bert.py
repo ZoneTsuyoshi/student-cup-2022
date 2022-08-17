@@ -34,7 +34,9 @@ def train(config, dirpath):
     epoch = config["train"]["epoch"]
     kfolds = config["train"]["kfolds"]
     warmup_rate = config["train"]["warmup_rate"]
-    gradient_clip_val = config["train"]["gradient_clipping"]
+    gradient_clip_val = config["network"]["gradient_clipping"]
+    manual_optimization = config["network"]["awp"]
+    if manual_optimization: gradient_clip_val = None
     ckpt_name = config["test"]["ckpt"] # best / last
     
     train_loader_list, valid_loader_list, valid_labels_list, weight_list = get_train_data(config)

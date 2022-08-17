@@ -3,15 +3,15 @@ from torch import nn
 import torch.nn.functional as F
 
 
-def get_loss_fn(loss_name="CEL", gamma=1, alpha=1, lb_smooth=0.1, num_classes=2, weight=None):
+def get_loss_fn(loss_name="CEL", gamma=1, alpha=1, lb_smooth=0.1, num_classes=2, weight=None, reduction="mean"):
     if loss_name in ["cross-entropy", "CEL", "CE"]:
-        loss_fn = nn.CrossEntropyLoss(weight)
+        loss_fn = nn.CrossEntropyLoss(weight, reduction=reduction)
     elif loss_name in ["focal", "FL"]:
-        loss_fn = FocalLoss(gamma)
+        loss_fn = FocalLoss(gamma, weight, reduction=reduction)
     elif loss_name in ["FLS", "FLwS"]:
-        loss_fn = FocalLossWithSmoothing(num_classes, gamma, lb_smooth)
+        loss_fn = FocalLossWithSmoothing(num_classes, gamma, lb_smooth, reduction=reduction)
     elif loss_name in ["dice", "DL"]:
-        loss_fn = SelfAdjDiceLoss(alpha, gamma)
+        loss_fn = SelfAdjDiceLoss(alpha, gamma, reduction)
     else:
         raise ValueError("loss must be cross-entropy, focal, or dice.")
     return loss_fn
@@ -20,8 +20,8 @@ def get_loss_fn(loss_name="CEL", gamma=1, alpha=1, lb_smooth=0.1, num_classes=2,
 class FocalLoss(nn.CrossEntropyLoss):
     ''' Focal loss for classification tasks on imbalanced datasets '''
 
-    def __init__(self, gamma, alpha=None, ignore_index=-100, reduction='mean'):
-        super().__init__(weight=alpha, ignore_index=ignore_index, reduction='none')
+    def __init__(self, gamma:int, weight:torch.tensor=None, ignore_index:int=-100, reduction:str="mean"):
+        super().__init__(weight=weight, ignore_index=ignore_index, reduction="none")
         self.reduction = reduction
         self.gamma = gamma
 
@@ -38,7 +38,7 @@ class FocalLoss(nn.CrossEntropyLoss):
 
     
 class FocalLossWithSmoothing(nn.Module):
-    def __init__(self, num_classes:int, gamma:int=1, lb_smooth:float=0.1, size_average:bool=True, ignore_index:int=None):
+    def __init__(self, num_classes:int, gamma:int=1, lb_smooth:float=0.1, size_average:bool=True, ignore_index:int=None, reduction:str="mean"):
         """
         :param gamma:
         :param lb_smooth:
@@ -52,6 +52,7 @@ class FocalLossWithSmoothing(nn.Module):
         self._lb_smooth = lb_smooth
         self._size_average = size_average
         self._ignore_index = ignore_index
+        self._reduction = reduction
         self._log_softmax = nn.LogSoftmax(dim=1)
 
         if self._num_classes <= 1:
@@ -80,7 +81,7 @@ class FocalLossWithSmoothing(nn.Module):
         loss = -torch.sum(difficulty_level * logs * lb_one_hot, dim=1)
         if self._ignore_index is not None:
             loss[ignore] = 0
-        return loss.mean()
+        return torch.mean(loss) if self._reduction == 'mean' else torch.sum(loss) if self._reduction == 'sum' else loss
 
     def _estimate_difficulty_level(self, logits, label):
         """
@@ -118,6 +119,7 @@ class SelfAdjDiceLoss(torch.nn.Module):
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
+        
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         probs = torch.softmax(logits, dim=1)
