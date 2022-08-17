@@ -6,7 +6,7 @@
         "epoch":10,
         "batch_size":16,
         "warmup_rate":50,
-        "gpu":2,
+        "gpu":0,
         "seed":0,
         "weight":false,
         "da":"m",
@@ -27,11 +27,11 @@
         "beta2":0.999,
         "epsilon":1e-6,
         "scheduler":"linear",
-        "awp":true,
-        "awp_lr":1e-4,
-        "awp_eps":1e-2,
-        "awp_start_epoch":2,
-        "awp_steps":1
+        "at":"fgm",
+        "adv_lr":1e-2,
+        "adv_eps":1e-2,
+        "adv_start_epoch":0,
+        "adv_steps":1
     },
     
     "test":{

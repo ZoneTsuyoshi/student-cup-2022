@@ -5,7 +5,7 @@ import torchmetrics as tm
 import pytorch_lightning as pl
 from transformers import AutoModel, AutoConfig, get_linear_schedule_with_warmup, get_cosine_schedule_with_warmup
 from utils_loss import get_loss_fn
-from utils_at import AWP
+import utils_at
 # from utils_metrics import *
 
 
@@ -28,7 +28,7 @@ class LitBertForSequenceClassification(pl.LightningModule):
                  beta1:float=0.9, beta2:float=0.99, epsilon:float=1e-8, gradient_clipping:float=1.0,
                  loss:str="CEL", gamma:float=1, alpha:float=1, lb_smooth:float=0.1, weight:torch.tensor=None,
                  scheduler:str=None, num_warmup_steps:int=100, num_training_steps:int=1000,
-                 awp:bool=False, awp_lr:float=1e-4, awp_eps:float=1e-2, awp_start_epoch:int=1, awp_steps:int=1,
+                 at:str=None, adv_lr:float=1e-4, adv_eps:float=1e-2, adv_start_epoch:int=1, adv_steps:int=1,
                  fold_id:int=0, num_labels:int=4):
         super().__init__()
         self.save_hyperparameters()
@@ -38,9 +38,10 @@ class LitBertForSequenceClassification(pl.LightningModule):
         self.metrics = tm.MetricCollection([tm.Accuracy(), tm.F1Score(num_classes=num_labels, average="macro")])
         self.confmat = tm.ConfusionMatrix(num_labels)
         self.loss_fn = get_loss_fn(loss, gamma, alpha, lb_smooth, num_labels, weight)
-        self.using_awp = awp
-        if self.using_awp:
-            self.awp = AWP(self.sc_model, self.loss_fn, awp_lr, awp_eps, awp_start_epoch, awp_steps)
+        self.adversarial_training = at is not None
+        if self.adversarial_training:
+            self.at = getattr(utils_at, at.upper())(self.sc_model, self.loss_fn, adv_lr, adv_eps, adv_start_epoch, adv_steps)
+            # self.at = AWP(self.sc_model, self.loss_fn, adv_lr, adv_eps, adv_start_epoch, adv_steps)
             self.automatic_optimization = False
         
         
@@ -54,8 +55,8 @@ class LitBertForSequenceClassification(pl.LightningModule):
         
 
     def training_step(self, batch, batch_idx):
-        if self.using_awp:
-            loss, logits = self._training_awp_step(batch, batch_idx)
+        if self.adversarial_training:
+            loss, logits = self._adversarial_training_step(batch, batch_idx)
         else:
             loss, logits = self._shared_loss(batch, batch_idx, "train")
         self._shared_eval(batch, logits, "train")
@@ -67,16 +68,16 @@ class LitBertForSequenceClassification(pl.LightningModule):
         self._shared_eval(batch, logits, "valid")
         
         
-    def _training_awp_step(self, batch, batch_idx):
+    def _adversarial_training_step(self, batch, batch_idx):
         opt = self.optimizers(use_pl_optimizer=True)
         loss, logits = self(**batch)
         opt.zero_grad()
         self.manual_backward(loss)
 
-        if self.current_epoch >= self.hparams.awp_start_epoch:
-            adv_loss = self.awp.attack_backward(**batch, optimizer=opt, epoch=self.current_epoch)
+        if self.current_epoch >= self.hparams.adv_start_epoch:
+            adv_loss = self.at.attack_backward(**batch, optimizer=opt, epoch=self.current_epoch)
             self.manual_backward(adv_loss)
-            self.awp._restore()
+            self.at._restore()
         
         nn.utils.clip_grad_norm_(self.parameters(), max_norm=self.hparams.gradient_clipping)
         opt.step()
@@ -129,9 +130,9 @@ class LitBertForSequenceClassification(pl.LightningModule):
 def select_hyperparameters(config):
     model_name = config["network"]["model_name"]
     
-    if "roberta" in model_name:
+    if "roberta-base" in model_name:
         default_config_path = "default_cfgs/roberta-base.json"
-    elif "deberta-v3" in model_name:
+    elif "deberta-v3-base" in model_name:
         default_config_path = "default_cfgs/deberta-v3-base.json"
         
     f = open(default_config_path, "r")
@@ -143,6 +144,10 @@ def select_hyperparameters(config):
             if config[fkey][key] is None and key in default_config.keys():
                 config[fkey][key] = default_config[key]
                 
+    if config["network"]["at"].lower()=="awp":
+        if config["network"]["adv_eps"] is None: config["network"]["adv_lr"] = 1e-4
+    elif config["network"]["at"].lower()=="fgm":
+        if config["network"]["adv_eps"] is None: config["network"]["adv_lr"] = 1e-2
     return config
     
         

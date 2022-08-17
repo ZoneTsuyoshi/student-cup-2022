@@ -35,7 +35,7 @@ def train(config, dirpath):
     kfolds = config["train"]["kfolds"]
     warmup_rate = config["train"]["warmup_rate"]
     gradient_clip_val = config["network"]["gradient_clipping"]
-    manual_optimization = config["network"]["awp"]
+    manual_optimization = config["network"]["at"] is not None
     if manual_optimization: gradient_clip_val = None
     ckpt_name = config["test"]["ckpt"] # best / last
     

@@ -3,19 +3,30 @@ from torch import nn
 from utils_loss import get_loss_fn
 
 
-class AWP:
-    def __init__(self, model, loss_fn, adv_lr=1.0, adv_eps=0.01, start_epoch=0, adv_step=1, adv_param="weight"):
-        # super().__init__()
+# def get_adversarial_training_object(model, loss_fn, at_name="AWP", adv_lr=1e-4, adv_eps=1e-2, adv_start_epoch=0, adv_steps=1):
+#     if at_name.lower()=="awp":
+#         at_object = AWP(model, loss_fn, adv_lr, adv_eps, adv_start_epoch, adv_steps)
+#     elif at_name.lower()=="fgm":
+#         at_object = FGM(model, loss_fn, adv_eps)
+#     return at_object
+
+
+class AT:
+    def __init__(self, model, loss_fn, adv_lr:float=1.0, adv_eps:float=0.01, start_epoch:float=0, adv_step:float=1, adv_param:str="weight"):
         self.model = model
-        # self.optimizer = optimizer
         self.adv_param = adv_param
         self.adv_lr = adv_lr
         self.adv_eps = adv_eps
         self.start_epoch = start_epoch
         self.adv_step = adv_step
         self.backup = {}
-        self.backup_eps = {}
         self.criterion = loss_fn
+
+
+class AWP(AT):
+    def __init__(self, model, loss_fn, adv_lr=1.0, adv_eps=0.01, start_epoch=0, adv_step=1, adv_param="weight"):
+        super(AWP, self).__init__(model, loss_fn, adv_lr, adv_eps, start_epoch, adv_step, adv_param)
+        self.backup_eps = {}
         
 
     def attack_backward(self, optimizer, input_ids, attention_mask, token_type_ids=None, labels=None, epoch=0):
@@ -63,3 +74,36 @@ class AWP:
                 param.data = self.backup[name]
         self.backup = {}
         self.backup_eps = {}
+        
+        
+        
+        
+class FGM(AT):
+    def __init__(self, model, loss_fn, adv_lr=1.0, adv_eps=0.01, start_epoch=0, adv_step=1, adv_param="word_embeddings"):
+        super(FGM, self).__init__(model, loss_fn, adv_lr, adv_eps, start_epoch, adv_step, adv_param)
+
+    
+    def attack_backward(self, input_ids, attention_mask, token_type_ids=None, labels=None, optimizer=None, epoch=0):
+        self._attack()
+        logits = self.model(input_ids, attention_mask, token_type_ids)
+        return self.criterion(logits, labels)
+        
+        
+    def _attack(self):
+        e = 1e-6
+        for name, param in self.model.named_parameters():
+            if param.requires_grad and self.adv_param in name:
+                self.backup[name] = param.data.clone()
+                norm = torch.norm(param.grad)
+                if norm != 0:
+                    r_at = self.adv_lr * param.grad / (norm + e)
+                    param.data.add_(r_at)
+
+                    
+    def _restore(self):
+        for name, param in self.model.named_parameters():
+            if param.requires_grad and self.adv_param in name:
+                assert name in self.backup
+                param.data = self.backup[name]
+            self.backup = {}
+    
