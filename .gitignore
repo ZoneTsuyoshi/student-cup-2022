@@ -1,5 +1,6 @@
 # data privacy
 data/
+input/
 results/
 src/lightning_logs/
 src/nohup.out

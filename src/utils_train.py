@@ -10,6 +10,7 @@ from utils_loss import get_loss_fn
 
 class LitBertForSequenceClassification(pl.LightningModule):
     def __init__(self, model_name:str, dirpath, lr:float, dropout:float=0., weight_decay=0.01, 
+                 beta1:float=0.9, beta2:float=0.99, epsilon:float=1e-8,
                  loss:str="CEL", gamma:float=1, alpha:float=1, lb_smooth:float=0.1, weight=None,
                  scheduler=None, num_warmup_steps:int=100, num_training_steps:int=1000,
                  fold_id:int=0, num_labels:int=4):
@@ -78,12 +79,13 @@ class LitBertForSequenceClassification(pl.LightningModule):
     
         
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay,
+                                     betas=(self.hparams.beta1, self.hparams.beta2), eps=self.hparams.epsilon)
         if self.hparams.scheduler is None:
             return optimizer
-        elif self.hparams.scheduler in ["LSW", "LSwW"]:
+        elif self.hparams.scheduler in ["LSW", "LSwW", "linear", "Linear"]:
             scheduler = get_linear_schedule_with_warmup(optimizer, self.hparams.num_warmup_steps, self.hparams.num_training_steps)
-        elif self.hparams.scheduler in ["CSW", "CSwW"]:
+        elif self.hparams.scheduler in ["CSW", "CSwW", "cosine", "Cosine"]:
             scheduler = get_cosine_schedule_with_warmup(optimizer, self.hparams.num_warmup_steps, self.hparams.num_training_steps)
         return [optimizer], [scheduler]
     

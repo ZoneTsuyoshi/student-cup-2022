@@ -1,10 +1,10 @@
 {
     "train":{
-        "number_of_date":"1",
+        "number_of_date":"2",
         "valid_rate":0.25,
-        "kfolds":4,
+        "kfolds":2,
         "epoch":10,
-        "batch_size":16,
+        "batch_size":8,
         "gradient_clipping":1,
         "warmup_rate":0,
         "gpu":2,
@@ -15,14 +15,21 @@
     },
     
     "network":{
-        "model_name":"microsoft/deberta-v3-base",
-        "loss":"FLS",
+        "model_name":"microsoft/deberta-v3-large",
+        "loss":"FL",
         "gamma":2,
         "alpha":1,
         "lb_smooth":0.1,
         "lr":2e-5,
         "dropout":0.1,
         "weight_decay":0.01,
-        "scheduler":"LSW"
+        "beta1":0.9,
+        "beta2":0.999,
+        "epsilon":1e-6,
+        "scheduler":"linear"
+    },
+    
+    "test":{
+        "ckpt": "last"
     }
 }
