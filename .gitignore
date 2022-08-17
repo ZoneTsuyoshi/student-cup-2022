@@ -1,9 +1,10 @@
 # data privacy
 data/
-input/
+pretrained_models/
 results/
 src/lightning_logs/
 src/nohup.out
+src/kill_process.py
 *.ipynb
 
 # General

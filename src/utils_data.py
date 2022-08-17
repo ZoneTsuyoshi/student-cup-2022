@@ -47,6 +47,24 @@ def create_cv_data(config):
     cv_df.to_csv(f"../data/{kfolds}fold-seed{seed}.csv", index=True)
     
     
+def get_train_data_for_mlm(config):
+    seed = config["base"]["seed"]
+    kfolds = config["base"]["kfolds"]
+    model_name = config["base"]["model_name"]
+    
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    train_df = pd.read_csv(f"../data/{kfolds}fold-seed{seed}.csv", index_col=0)
+    train_texts = train_df["description"].values
+    
+    train_dataset, valid_dataset = [], []
+    all_indices = np.arange(len(train_df))
+    for i in range(kfolds):
+        train_indices = all_indices[train_df["fold"]!=i]
+        valid_indices = all_indices[train_df["fold"]==i]
+        train_dataset.append(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[train_indices])))
+        valid_dataset.append(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[valid_indices])))
+    return train_dataset, valid_dataset
+    
     
 def get_train_data(config):
     model_name = config["network"]["model_name"]
@@ -76,7 +94,6 @@ def get_train_data(config):
             weight.append(torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels[train_indices]), dtype=torch.float32))
         else:
             weight.append(None)
-    
     return train_loader, valid_loader, valid_labels, weight
     
     

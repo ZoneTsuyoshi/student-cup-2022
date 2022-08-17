@@ -1,0 +1,20 @@
+{
+    "base":{
+        "model_name":"microsoft/deberta-v3-base",
+        "kfolds":4,
+        "seed":0,
+        "gpu":0,
+        "mask_ratio":0.15
+    },
+    
+    "training":{
+        "learning_rate":2e-5,
+        "weight_decay":0.01,
+        "per_device_train_batch_size":8,
+        "per_device_eval_batch_size":8,
+        "num_train_epochs":10,
+        "lr_scheduler_type":"cosine",
+        "warmup_ratio":0.2,
+        "gradient_accumulation_steps":1
+    }
+}
