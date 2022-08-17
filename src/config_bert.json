@@ -1,12 +1,12 @@
 {
     "train":{
-        "number_of_date":"1",
+        "number_of_date":"2",
         "valid_rate":0.25,
         "kfolds":4,
         "epoch":10,
         "batch_size":16,
         "warmup_rate":50,
-        "gpu":1,
+        "gpu":2,
         "seed":0,
         "weight":false,
         "da":"m",

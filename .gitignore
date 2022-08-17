@@ -4,6 +4,7 @@ input/
 results/
 src/lightning_logs/
 src/nohup.out
+*.ipynb
 
 # General
 .DS_Store
