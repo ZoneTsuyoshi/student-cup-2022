@@ -4,11 +4,11 @@ import copy
 import pathlib
 from distutils.util import strtobool
 
-from run_bert import main
+from run_mlm import main
 from utils import is_num
 
 
-f = open("config_bert.json", "r")
+f = open("config_mlm.json", "r")
 config = json.load(f)
 f.close()
 
@@ -18,7 +18,6 @@ for key in config.keys():
 # print(flatten_config)
 
 parser = argparse.ArgumentParser(description="subprocess for grid search")
-parser.add_argument("--name", default="")
 
 for key in flatten_config.keys():
     if type(flatten_config[key])==bool:
@@ -53,4 +52,4 @@ for top_key in config.keys():
         else:
             new_config[top_key][key] = new_flatten_config[key]
             
-main(new_config, new_flatten_config["name"])
+main(new_config)

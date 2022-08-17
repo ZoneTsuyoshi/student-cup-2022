@@ -12,6 +12,7 @@ def main(config):
     kfolds = config["base"]["kfolds"]
     mask_ratio = config["base"]["mask_ratio"]
     model_name = config["base"]["model_name"]
+    batch_size = config["base"]["batch_size"]
     
     dirpath = f"../pretrained_models/mlm-k{kfolds}-s{seed}-"
     if "/" in model_name:
@@ -46,7 +47,7 @@ def main(config):
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm_probability=mask_ratio)
     mlm_config = AutoConfig.from_pretrained(model_name, output_hidden_states=True)
     training_args = TrainingArguments(**config["training"], output_dir=dirpath, evaluation_strategy="epoch", save_strategy='no',
-                                     report_to="comet_ml", seed=seed)
+                                     report_to="comet_ml", seed=seed, per_device_train_batch_size=batch_size, per_device_eval_batch_size=batch_size)
         
     for i, (train_dataset, valid_dataset) in enumerate(zip(train_dataset_list, valid_dataset_list)):
         model = AutoModelForMaskedLM.from_pretrained(model_name, config=mlm_config)
