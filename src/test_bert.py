@@ -16,6 +16,7 @@ def test(dirpath, ckpt_name=None):
     gpu = config["train"]["gpu"]
     seed = config["train"]["seed"]
     kfolds = config["train"]["kfolds"]
+    all_weight = config["test"]["all_weight"]
     if ckpt_name is None:
         ckpt_name = config["test"]["ckpt"]
     
@@ -29,10 +30,18 @@ def test(dirpath, ckpt_name=None):
     test_loader = get_test_data(config)
     test_probs = []
     trainer = pl.Trainer(accelerator="gpu", devices=[gpu])
-    for i in range(kfolds):
-        model = LitBertForSequenceClassification.load_from_checkpoint(os.path.join(dirpath, f"fold{i}_{ckpt_name}.ckpt"))
-        test_probs.append(F.softmax(torch.cat(trainer.predict(model, test_loader))).detach().cpu().numpy())
-    labels_predicted = np.argmax(np.array(test_probs).sum(0), -1)
+    for i in range(kfolds+1):
+        fold_id = i if i<kfolds else "A"
+        ckpt_path = os.path.join(dirpath, f"fold{fold_id}_{ckpt_name}.ckpt")
+        if os.path.exists(ckpt_path):
+            model = LitBertForSequenceClassification.load_from_checkpoint(ckpt_path)
+            test_probs.append(F.softmax(torch.cat(trainer.predict(model, test_loader))).detach().cpu().numpy())
+    test_probs = np.array(test_probs)
+    np.save(os.path.join(dirpath, "test_probs.csv"), test_probs)
+    
+    # test_probs = np.load(os.path.join(dirpath, "test_probs.csv"))
+    test_weights = np.ones(kfolds) if len(test_probs)==kfolds else np.concatenate([np.ones(kfolds), all_weight * np.ones(1)])
+    labels_predicted = np.argmax((np.array(test_probs) * test_weights[:,None,None]).sum(0), -1)
     pd.DataFrame(np.array([np.arange(1516, 3033), labels_predicted+1]).T).to_csv(os.path.join(dirpath, "submission.csv"), header=False, index=False)
     
     

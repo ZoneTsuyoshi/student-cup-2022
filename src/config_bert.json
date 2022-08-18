@@ -1,16 +1,17 @@
 {
     "train":{
-        "number_of_date":"3",
+        "number_of_date":"1",
         "valid_rate":0.25,
         "kfolds":4,
-        "epoch":10,
+        "epoch":1,
         "batch_size":16,
         "warmup_rate":50,
-        "gpu":1,
+        "gpu":0,
         "seed":0,
         "weight":false,
         "da":"m",
-        "mask_ratio":0.1
+        "mask_ratio":0.1,
+        "mlm_id":1
     },
     
     "network":{
@@ -35,6 +36,7 @@
     },
     
     "test":{
-        "ckpt": "last"
+        "ckpt": "last",
+        "all_weight": 2
     }
 }

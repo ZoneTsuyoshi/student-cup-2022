@@ -46,14 +46,20 @@ def main(config):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm_probability=mask_ratio)
     mlm_config = AutoConfig.from_pretrained(model_name, output_hidden_states=True)
-    training_args = TrainingArguments(**config["training"], output_dir=dirpath, evaluation_strategy="epoch", save_strategy='no',
-                                     report_to="comet_ml", seed=seed, per_device_train_batch_size=batch_size, per_device_eval_batch_size=batch_size)
         
     for i, (train_dataset, valid_dataset) in enumerate(zip(train_dataset_list, valid_dataset_list)):
+        if valid_dataset is not None:
+            fold_id = i
+            evaluation_strategy = "epoch"
+        else:
+            fold_id = "A"
+            evaluation_strategy = "no"
+        training_args = TrainingArguments(**config["training"], output_dir=dirpath, evaluation_strategy=evaluation_strategy, save_strategy="no",
+                                     report_to="comet_ml", seed=seed, per_device_train_batch_size=batch_size, per_device_eval_batch_size=batch_size)
         model = AutoModelForMaskedLM.from_pretrained(model_name, config=mlm_config)
         trainer = Trainer(model=model, args=training_args, train_dataset=train_dataset, eval_dataset=valid_dataset, data_collator=data_collator)
         trainer.train()
-        trainer.model.save_pretrained(os.path.join(dirpath, f"fold{i}"))
+        trainer.model.save_pretrained(os.path.join(dirpath, f"fold{fold_id}"))
     
     
     

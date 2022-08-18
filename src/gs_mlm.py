@@ -12,8 +12,10 @@ def gs_main(config):
     model_size_list = ["base", "large"]
     model_list = [i+"-"+j for (j,i) in itertools.product(model_size_list, model_name_list)]
     bs_list = np.repeat(np.array([8,4]), 3).tolist()
+    wd_list = [0.1, 0.01, 0.01, 0.1, 0.01, 0.01]
     gs_dict = {"mix":{"model_name":model_list,
-                     "batch_size":bs_list},
+                     "batch_size":bs_list,
+                     "weight_decay":wd_list},
                "mask_ratio":[0.1, 0.15],
                "num_train_epochs":[10, 20]}
     # print(type(model_list), type(bs_list))

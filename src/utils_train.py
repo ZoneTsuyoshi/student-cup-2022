@@ -10,10 +10,13 @@ import utils_at
 
 
 class SequenceClassification(nn.Module):
-    def __init__(self, model_name:str, dropout:float=0., num_labels:int=4):
+    def __init__(self, model_name:str, dropout:float=0., mlm_path:str=None, num_labels:int=4):
         super().__init__()
         bert_config = AutoConfig.from_pretrained(model_name)
-        self.bert = AutoModel.from_pretrained(model_name)
+        if mlm_path is None:
+            self.bert = AutoModel.from_pretrained(model_name)
+        else:
+            self.bert = AutoModel.from_pretrained(mlm_path)
         self.linear = nn.Linear(bert_config.hidden_size, num_labels)
         self.dropout = nn.Dropout(dropout)
         
@@ -28,13 +31,14 @@ class LitBertForSequenceClassification(pl.LightningModule):
                  beta1:float=0.9, beta2:float=0.99, epsilon:float=1e-8, gradient_clipping:float=1.0,
                  loss:str="CEL", gamma:float=1, alpha:float=1, lb_smooth:float=0.1, weight:torch.tensor=None,
                  scheduler:str=None, num_warmup_steps:int=100, num_training_steps:int=1000,
+                 mlm_path:str=None,
                  at:str=None, adv_lr:float=1e-4, adv_eps:float=1e-2, adv_start_epoch:int=1, adv_steps:int=1,
                  fold_id:int=0, num_labels:int=4):
         super().__init__()
         self.save_hyperparameters()
 
         # load BERT model
-        self.sc_model = SequenceClassification(model_name, dropout, num_labels)
+        self.sc_model = SequenceClassification(model_name, dropout, mlm_path, num_labels)
         self.metrics = tm.MetricCollection([tm.Accuracy(), tm.F1Score(num_classes=num_labels, average="macro")])
         self.confmat = tm.ConfusionMatrix(num_labels)
         self.loss_fn = get_loss_fn(loss, gamma, alpha, lb_smooth, num_labels, weight)

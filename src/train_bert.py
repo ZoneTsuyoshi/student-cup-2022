@@ -34,30 +34,34 @@ def train(config, dirpath):
     epoch = config["train"]["epoch"]
     kfolds = config["train"]["kfolds"]
     warmup_rate = config["train"]["warmup_rate"]
+    mlm_id = config["train"]["mlm_id"]
     gradient_clip_val = config["network"]["gradient_clipping"]
     manual_optimization = config["network"]["at"] is not None
     if manual_optimization: gradient_clip_val = None
     ckpt_name = config["test"]["ckpt"] # best / last
     
-    train_loader_list, valid_loader_list, valid_labels_list, weight_list = get_train_data(config)
+    train_loader_list, valid_loader_list, valid_labels_list, weight_list = get_train_data(config, ["fold"])
     logger = pl.loggers.CometLogger(workspace=os.environ.get("zonetsuyoshi"), save_dir=dirpath, project_name="student-cup-2022")
     logger.log_hyperparams(config["train"])
     confmat = np.zeros([n_labels, n_labels])
     f1macro = 0
     for i, (train_loader, valid_loader, valid_labels, weight) in enumerate(zip(train_loader_list, valid_loader_list, valid_labels_list, weight_list)):
+        fold_id = i if valid_loader is not None else "A"
         total_steps = epoch * len(train_loader)
         warmup_steps = int(warmup_rate * total_steps) if warmup_rate < 1 else warmup_rate
-        model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=i, weight=weight, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
-        checkpoint = pl.callbacks.ModelCheckpoint(monitor=f'valid_loss{i}', mode='min', save_last=True, save_top_k=1, save_weights_only=True, dirpath=dirpath, filename=f"fold{i}_best")
-        checkpoint.CHECKPOINT_NAME_LAST = f"fold{i}_last"
+        mlm_path = f"../pretrained_models/mlm-k{kfolds}-s{seed}-deberta-v3-base{mlm_id}/fold{fold_id}" if mlm_id is not None else None
+        model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=fold_id, weight=weight, num_warmup_steps=warmup_steps, num_training_steps=total_steps, mlm_path=mlm_path)
+        checkpoint = pl.callbacks.ModelCheckpoint(monitor=f'valid_loss{fold_id}' if valid_loader is not None else f"train_loss{fold_id}", mode='min', save_last=True, save_top_k=1, save_weights_only=True, dirpath=dirpath, filename=f"fold{fold_id}_best")
+        checkpoint.CHECKPOINT_NAME_LAST = f"fold{fold_id}_last"
         trainer = pl.Trainer(accelerator="gpu", devices=[gpu], max_epochs=epoch, gradient_clip_val=gradient_clip_val, callbacks=[checkpoint], logger=logger)
         trainer.fit(model, train_loader, valid_loader)
         
-        model = LitBertForSequenceClassification.load_from_checkpoint(os.path.join(dirpath, f"fold{i}_{ckpt_name}.ckpt"))
-        valid_logits = torch.cat(trainer.predict(model, valid_loader)).detach().cpu().numpy()
-        valid_predicted_labels = np.argmax(valid_logits, -1)
-        confmat += metrics.confusion_matrix(valid_labels, valid_predicted_labels)
-        f1macro += metrics.f1_score(valid_labels, valid_predicted_labels, average="macro")
+        if valid_loader is not None:
+            model = LitBertForSequenceClassification.load_from_checkpoint(os.path.join(dirpath, f"fold{fold_id}_{ckpt_name}.ckpt"))
+            valid_logits = torch.cat(trainer.predict(model, valid_loader)).detach().cpu().numpy()
+            valid_predicted_labels = np.argmax(valid_logits, -1)
+            confmat += metrics.confusion_matrix(valid_labels, valid_predicted_labels)
+            f1macro += metrics.f1_score(valid_labels, valid_predicted_labels, average="macro")
     logger.log_metrics({"f1macro":f1macro/kfolds})
     fig, ax = plt.subplots(figsize=(5,5))
     sns.heatmap(confmat / confmat.sum(1)[:,None], cmap="Blues", ax=ax, vmin=0, vmax=1, square=True, annot=True, fmt=".2f")

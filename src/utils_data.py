@@ -47,26 +47,32 @@ def create_cv_data(config):
     cv_df.to_csv(f"../data/{kfolds}fold-seed{seed}.csv", index=True)
     
     
-def get_train_data_for_mlm(config):
+def get_train_data_for_mlm(config, return_dataset=["fold", "all"]):
     seed = config["base"]["seed"]
     kfolds = config["base"]["kfolds"]
     model_name = config["base"]["model_name"]
     
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    train_df = pd.read_csv(f"../data/{kfolds}fold-seed{seed}.csv", index_col=0)
-    train_texts = train_df["description"].values
-    
     train_dataset, valid_dataset = [], []
-    all_indices = np.arange(len(train_df))
-    for i in range(kfolds):
-        train_indices = all_indices[train_df["fold"]!=i]
-        valid_indices = all_indices[train_df["fold"]==i]
-        train_dataset.append(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[train_indices])))
-        valid_dataset.append(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[valid_indices])))
+    
+    if "fold" in return_dataset:
+        train_df = pd.read_csv(f"../data/{kfolds}fold-seed{seed}.csv", index_col=0)
+        train_texts = train_df["description"].values
+        all_indices = np.arange(len(train_df))
+        for i in range(kfolds):
+            train_indices = all_indices[train_df["fold"]!=i]
+            valid_indices = all_indices[train_df["fold"]==i]
+            train_dataset.append(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[train_indices])))
+            valid_dataset.append(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[valid_indices])))
+    if "all" in return_dataset:
+        train_df = pd.read_csv("../data/train.csv", index_col=0) # id, description, jopflag
+        train_texts = adjust_texts(train_df["description"].values)
+        train_dataset.append(DescriptionDataset(**embed_and_augment(tokenizer, train_texts)))
+        valid_dataset.append(None)
     return train_dataset, valid_dataset
     
     
-def get_train_data(config):
+def get_train_data(config, return_loader=["fold", "all"]):
     model_name = config["network"]["model_name"]
     weight_on = config["train"]["weight"]
     valid_rate = config["train"]["valid_rate"]
@@ -78,20 +84,32 @@ def get_train_data(config):
     random.seed(seed)
     
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    train_df = pd.read_csv(f"../data/{kfolds}fold-seed{seed}.csv", index_col=0)
-    train_texts = train_df["description"].values
-    train_labels = train_df["jobflag"].values - 1
-
     train_loader, valid_loader, valid_labels, weight = [], [], [], []
-    all_indices = np.arange(len(train_df))
-    for i in range(kfolds):
-        train_indices = all_indices[train_df["fold"]!=i]
-        valid_indices = all_indices[train_df["fold"]==i]
-        train_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[train_indices], train_labels[train_indices], da_method, mask_ratio)), batch_size=batch_size, shuffle=True))
-        valid_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[valid_indices], train_labels[valid_indices])), batch_size=batch_size, shuffle=False))
-        valid_labels.append(train_labels[valid_indices])
+    
+    if "fold" in return_loader:
+        train_df = pd.read_csv(f"../data/{kfolds}fold-seed{seed}.csv", index_col=0)
+        train_texts = train_df["description"].values
+        train_labels = train_df["jobflag"].values - 1
+        all_indices = np.arange(len(train_df))
+        for i in range(kfolds):
+            train_indices = all_indices[train_df["fold"]!=i]
+            valid_indices = all_indices[train_df["fold"]==i]
+            train_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[train_indices], train_labels[train_indices], da_method, mask_ratio)), batch_size=batch_size, shuffle=True))
+            valid_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[valid_indices], train_labels[valid_indices])), batch_size=batch_size, shuffle=False))
+            valid_labels.append(train_labels[valid_indices])
+            if weight_on: 
+                weight.append(torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels[train_indices]), dtype=torch.float32))
+            else:
+                weight.append(None)
+    if "all" in return_loader:
+        train_df = pd.read_csv("../data/train.csv", index_col=0) # id, description, jopflag
+        train_texts = adjust_texts(train_df["description"].values)
+        train_labels = train_df["jobflag"].values - 1
+        train_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts, train_labels, da_method, mask_ratio)), batch_size=batch_size, shuffle=True))
+        valid_loader.append(None)
+        valid_labels.append(None)
         if weight_on: 
-            weight.append(torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels[train_indices]), dtype=torch.float32))
+            weight.append(torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels), dtype=torch.float32))
         else:
             weight.append(None)
     return train_loader, valid_loader, valid_labels, weight
