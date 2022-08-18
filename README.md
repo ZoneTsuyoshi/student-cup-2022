@@ -17,14 +17,14 @@ DeBERTa-v3-base
 |exp13|3|0.1|2e-5|0.01|8|20|cosine|0.2|16x4=64|
 |exp13|4|0.15|2e-5|0.01|8|10|cosine|0.2|8x4=32|
 |exp13|5|0.15|2e-5|0.01|8|20|cosine|0.2|16x4=64|
+|exp13|6|0.1|2e-5|0.01|8|10|cosine|0.2|8x4+=|
+|exp13|7|0.15|2e-5|0.01|8|10|cosine|0.2|8x4+=|
 
 DeBERTa-v3-large
 |branch|id|mr|lr|wd|bs|ep|sceduler|wr|time(min)|
 |----|----|----|----|----|----|----|----|----|----|
-|exp13|1|0.1|2e-5|0.01|4|10|cosine|0.2||
-|exp13|2|0.1|2e-5|0.01|4|20|cosine|0.2||
-|exp13|3|0.15|2e-5|0.01|4|10|cosine|0.2||
-|exp13|4|0.15|2e-5|0.01|4|20|cosine|0.2||
+|exp14|1|0.1|2e-5|0.01|4|10|cosine|0.2||
+|exp14|2|0.15|2e-5|0.01|4|10|cosine|0.2||
 
 DeBERTa-base
 |branch|id|mr|lr|wd|bs|ep|sceduler|wr|time(min)|
@@ -33,14 +33,14 @@ DeBERTa-base
 |exp13|2|0.1|2e-5|0.01|8|20|cosine|0.2|23.75x4=95|
 |exp13|3|0.15|2e-5|0.01|8|10|cosine|0.2|12.25x4=49|
 |exp13|4|0.15|2e-5|0.01|8|20|cosine|0.2|23.75x4=95|
+|exp13|5|0.1|2e-5|0.01|8|10|cosine|0.2|12.25x4+=|
+|exp13|6|0.15|2e-5|0.01|8|10|cosine|0.2|12.25x4+=|
 
 DeBERTa-large
 |branch|id|mr|lr|wd|bs|ep|sceduler|wr|time(min)|
-|----|----|----|----|----|----|----|----|----|
-|exp13|1|0.1|2e-5|0.01|4|10|cosine|0.2||
-|exp13|2|0.1|2e-5|0.01|4|20|cosine|0.2||
-|exp13|3|0.15|2e-5|0.01|4|10|cosine|0.2||
-|exp13|4|0.15|2e-5|0.01|4|20|cosine|0.2||
+|----|----|----|----|----|----|----|----|----|----|
+|exp14|1|0.1|2e-5|0.01|4|10|cosine|0.2||
+|exp14|2|0.15|2e-5|0.01|4|10|cosine|0.2||
 
 RoBERTa-base
 |branch|id|mr|lr|wd|bs|ep|sceduler|wr|time(min)|
@@ -49,6 +49,8 @@ RoBERTa-base
 |exp13|2|0.1|2e-5|0.1|8|20|cosine|0.2|12.75x4=51|
 |exp13|3|0.15|2e-5|0.1|8|10|cosine|0.2|6.5x4=26|
 |exp13|4|0.15|2e-5|0.1|8|20|cosine|0.2|12.75x4=51|
+|exp14|5|0.1|2e-5|0.1|8|10|cosine|0.2|6.5x4+7=33|
+|exp14|6|0.15|2e-5|0.1|8|10|cosine|0.2|6.5x4+7=33|
 
 RoBERTa-large
 |branch|id|mr|lr|wd|bs|ep|sceduler|wr|time(min)|
@@ -57,3 +59,5 @@ RoBERTa-large
 |exp13|2|0.1|2e-5|0.1|4|20|cosine|0.2|34.25x4=137|
 |exp13|3|0.15|2e-5|0.1|4|10|cosine|0.2|17.25x4=69|
 |exp13|4|0.15|2e-5|0.1|4|20|cosine|0.2|34.25x4=137|
+|exp14|5|0.1|2e-5|0.1|4|10|cosine|0.2|17.25x4+=|
+|exp14|6|0.15|2e-5|0.1|4|10|cosine|0.2|17.25x4+=|

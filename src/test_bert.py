@@ -37,11 +37,13 @@ def test(dirpath, ckpt_name=None):
             model = LitBertForSequenceClassification.load_from_checkpoint(ckpt_path)
             test_probs.append(F.softmax(torch.cat(trainer.predict(model, test_loader))).detach().cpu().numpy())
     test_probs = np.array(test_probs)
-    np.save(os.path.join(dirpath, "test_probs.csv"), test_probs)
+    np.save(os.path.join(dirpath, "test_probs.npy"), test_probs)
     
     # test_probs = np.load(os.path.join(dirpath, "test_probs.csv"))
     test_weights = np.ones(kfolds) if len(test_probs)==kfolds else np.concatenate([np.ones(kfolds), all_weight * np.ones(1)])
-    labels_predicted = np.argmax((np.array(test_probs) * test_weights[:,None,None]).sum(0), -1)
+    test_probs = (np.array(test_probs) * test_weights[:,None,None]).sum(0) / (all_weight + kfolds)
+    np.save(os.path.join(dirpath, "test_aggregated_probs.npy"), test_probs)
+    labels_predicted = np.argmax(test_probs, -1)
     pd.DataFrame(np.array([np.arange(1516, 3033), labels_predicted+1]).T).to_csv(os.path.join(dirpath, "submission.csv"), header=False, index=False)
     
     
