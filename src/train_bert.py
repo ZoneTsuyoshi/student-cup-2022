@@ -35,6 +35,7 @@ def train(config, dirpath):
     epoch = config["train"]["epoch"]
     kfolds = config["train"]["kfolds"]
     warmup_rate = config["train"]["warmup_rate"]
+    using_mlm = config["train"]["using_mlm"]
     mlm_id = config["train"]["mlm_id"]
     gradient_clip_val = config["network"]["gradient_clipping"]
     manual_optimization = config["network"]["at"] is not None
@@ -50,7 +51,7 @@ def train(config, dirpath):
         fold_id = i if valid_loader is not None else "A"
         total_steps = epoch * len(train_loader)
         warmup_steps = int(warmup_rate * total_steps) if warmup_rate < 1 else warmup_rate
-        mlm_path = f"../pretrained_models/mlm-k{kfolds}-s{seed}-deberta-v3-base{mlm_id}/fold{fold_id}" if mlm_id is not None else None
+        mlm_path = f"../pretrained_models/mlm-k{kfolds}-s{seed}-deberta-v3-base{mlm_id}/fold{fold_id}" if using_mlm else None
         model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=fold_id, weight=weight, num_warmup_steps=warmup_steps, num_training_steps=total_steps, mlm_path=mlm_path)
         checkpoint = pl.callbacks.ModelCheckpoint(monitor=f'valid_loss{fold_id}' if valid_loader is not None else f"train_loss{fold_id}", mode='min', save_last=True, save_top_k=1, save_weights_only=True, dirpath=dirpath, filename=f"fold{fold_id}_best")
         checkpoint.CHECKPOINT_NAME_LAST = f"fold{fold_id}_last"

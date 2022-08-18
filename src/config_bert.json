@@ -11,6 +11,7 @@
         "weight":false,
         "da":"m",
         "mask_ratio":0.1,
+        "using_mlm":false,
         "mlm_id":1
     },
     
@@ -18,7 +19,7 @@
         "model_name":"microsoft/deberta-v3-base",
         "loss":"FL",
         "gamma":2,
-        "alpha":1,
+        "alpha":2,
         "lb_smooth":0.1,
         "lr":2e-5,
         "dropout":0.1,
@@ -30,8 +31,8 @@
         "scheduler":"linear",
         "at":"fgm",
         "adv_lr":1e-2,
-        "adv_eps":1e-2,
-        "adv_start_epoch":0,
+        "adv_eps":1e-3,
+        "adv_start_epoch":2,
         "adv_steps":1
     },
     

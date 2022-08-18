@@ -61,3 +61,15 @@ RoBERTa-large
 |exp13|4|0.15|2e-5|0.1|4|20|cosine|0.2|34.25x4=137|
 |exp14|5|0.1|2e-5|0.1|4|10|cosine|0.2|17.25x4+=|
 |exp14|6|0.15|2e-5|0.1|4|10|cosine|0.2|17.25x4+=|
+
+XLNet-base-cased
+|branch|id|mr|lr|wd|bs|ep|sceduler|wr|time(min)|
+|----|----|----|----|----|----|----|----|----|----|
+|exp14|1|0.1|2e-5|0.01|8|10|cosine|0.2|12x4+=|
+|exp14|2|0.15|2e-5|0.01|8|10|cosine|0.2|12x4+=|
+
+XLNet-large-cased
+|branch|id|mr|lr|wd|bs|ep|sceduler|wr|time(min)|
+|----|----|----|----|----|----|----|----|----|----|
+|exp14|1|0.1|2e-5|0.01|4|10|cosine|0.2||
+|exp14|2|0.15|2e-5|0.01|4|10|cosine|0.2||

@@ -14,8 +14,15 @@ def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_m
     number_of_date = config["train"]["number_of_date"]
     gpu_id = config["train"]["gpu"]
     
-
-    gs_dict = {"model_name":["microsoft/deberta-v3-base"], "lr":[1e-5, 2e-5]}
+    model_list = ["roberta-base", "microsoft/deberta-v3-base", "microsoft/deberta-base", "xlnet-base-cased",
+                 "roberta-large", "microsoft/deberta-v3-large", "microsoft/deberta-large",  "xlnet-large-cased"]
+    bs_list = np.repeat(np.array([16,8]), 4).tolist()
+    wd_list = [0.1, 0.01, 0.01, 0.01, 0.1, 0.01, 0.01, 0.01]
+    mi_list = [5, 6, 5, 1, 5, 1, 1, 1]
+    gs_dict = {"mix":{"model_name":model_list, "batch_size":bs_list, "weight_decay":wd_list, "mlm_id":mi_list},
+              "using_mlm":[True, False],
+              "mix2":{"loss":["FL", "DL"], "gamma":[2, 1]},
+              "mix3":{"at":["awp", "fgm", None], "adv_lr":[1., 0.1, 1.], "gpu":[0,1,2]}}
 
 
     gs_key = list(gs_dict.keys()) # list of keys for grid search
@@ -137,10 +144,10 @@ def get_gpu_info(nvidia_smi_path='nvidia-smi', keys=("index", "uuid", "name", "t
             
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Main Routine for Swithing Trajectory Network', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--config", type=str, default='config_bert.json', help='specify the config file')
-    parser.add_argument("--p", type=bool, default=False, help="parallel")
-    parser.add_argument("--q", type=int, default=3, help="max queue")
-    parser.add_argument("--m", type=int, default=2000, help="minimum memory")
+    parser.add_argument("-c", "--config", type=str, default='config_bert.json', help='specify the config file')
+    parser.add_argument("-p", "--parallel", type=bool, default=True, help="parallel")
+    parser.add_argument("-q", "--queue", type=int, default=3, help="max queue")
+    parser.add_argument("-m", "--memory", type=int, default=2000, help="minimum memory")
     args = parser.parse_args()
     
     f = open(args.config, "r")
