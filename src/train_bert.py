@@ -40,11 +40,11 @@ def train(config, dirpath):
     if manual_optimization: gradient_clip_val = None
     ckpt_name = config["test"]["ckpt"] # best / last
     
-    train_loader_list, valid_loader_list, valid_labels_list, weight_list = get_train_data(config, ["fold"])
+    train_loader_list, valid_loader_list, valid_labels_list, weight_list = get_train_data(config)
     logger = pl.loggers.CometLogger(workspace=os.environ.get("zonetsuyoshi"), save_dir=dirpath, project_name="student-cup-2022")
     logger.log_hyperparams(config["train"])
     confmat = np.zeros([n_labels, n_labels])
-    f1macro = 0
+    f1macro = 0; valid_logits_list = []
     for i, (train_loader, valid_loader, valid_labels, weight) in enumerate(zip(train_loader_list, valid_loader_list, valid_labels_list, weight_list)):
         fold_id = i if valid_loader is not None else "A"
         total_steps = epoch * len(train_loader)
@@ -60,12 +60,25 @@ def train(config, dirpath):
             model = LitBertForSequenceClassification.load_from_checkpoint(os.path.join(dirpath, f"fold{fold_id}_{ckpt_name}.ckpt"))
             valid_logits = torch.cat(trainer.predict(model, valid_loader)).detach().cpu().numpy()
             valid_predicted_labels = np.argmax(valid_logits, -1)
+            valid_logits_list.append(valid_logits)
             confmat += metrics.confusion_matrix(valid_labels, valid_predicted_labels)
             f1macro += metrics.f1_score(valid_labels, valid_predicted_labels, average="macro")
     logger.log_metrics({"f1macro":f1macro/kfolds})
+    
     fig, ax = plt.subplots(figsize=(5,5))
     sns.heatmap(confmat / confmat.sum(1)[:,None], cmap="Blues", ax=ax, vmin=0, vmax=1, square=True, annot=True, fmt=".2f")
     ax.set_xticklabels(job_list); ax.set_yticklabels(job_list)
     ax.set_xlabel("Predicted"); ax.set_ylabel("True"); logger.experiment.log_figure("confusion matrix", fig)
     
-    
+    fig, ax = plt.subplots(2,2,figsize=(10,10))
+    ax = ax.ravel()
+    valid_logits = np.concatenate(valid_logits_list)
+    valid_labels = np.concatenate(valid_labels_list[:kfolds])
+    for i, job_name in enumerate(job_list):
+        target = valid_labels==i
+        valid_bool = np.argmax(valid_logits[target], -1) == valid_labels[target]
+        for area in [valid_bool, ~valid_bool]:
+            sns.histplot(valid_logits[target][area], bins=np.linspace(0,1,11), ax=ax[i], stat="proportion")
+        ax[i].set_xlabel(job_name)
+    logger.experiment.log_figure("logits histogram", fig)
+        
