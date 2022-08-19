@@ -16,6 +16,7 @@ def test(dirpath, ckpt_name=None):
     gpu = config["train"]["gpu"]
     seed = config["train"]["seed"]
     kfolds = config["train"]["kfolds"]
+    debug = config["train"]["debug"]
     all_weight = config["test"]["all_weight"]
     if ckpt_name is None:
         ckpt_name = config["test"]["ckpt"]
@@ -27,7 +28,7 @@ def test(dirpath, ckpt_name=None):
         torch.cuda.manual_seed(seed)
     np.random.seed(seed)
     
-    test_loader = get_test_data(config)
+    test_loader = get_test_data(config, debug)
     test_probs = []
     trainer = pl.Trainer(accelerator="gpu", devices=[gpu])
     for i in range(kfolds+1):
@@ -44,7 +45,8 @@ def test(dirpath, ckpt_name=None):
     test_probs = (np.array(test_probs) * test_weights[:,None,None]).sum(0) / (all_weight + kfolds)
     np.save(os.path.join(dirpath, "test_aggregated_probs.npy"), test_probs)
     labels_predicted = np.argmax(test_probs, -1)
-    pd.DataFrame(np.array([np.arange(1516, 3033), labels_predicted+1]).T).to_csv(os.path.join(dirpath, "submission.csv"), header=False, index=False)
+    ids = np.arange(1516, 1532) if debug else np.arange(1516, 3033)
+    pd.DataFrame(np.array([ids, labels_predicted+1]).T).to_csv(os.path.join(dirpath, "submission.csv"), header=False, index=False)
     
     
     

@@ -25,7 +25,7 @@ def main():
     method = "Nelder-Mead"
     
     dt_now = datetime.datetime.now()
-    dirpath = os.path.join("../ensembles", "{:02}_esm".format(dt_now.day))
+    dirpath = os.path.join("../ensembles", "{:02}_esm_{}_{}".format(dt_now.day, loss_name, method))
     i = 1
     while os.path.exists(dirpath + str(i)):
         i += 1

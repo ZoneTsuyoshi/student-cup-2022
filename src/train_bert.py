@@ -12,6 +12,7 @@ from utils_train import LitBertForSequenceClassification, select_hyperparameters
 def train(config, dirpath):
     gpu = config["train"]["gpu"]
     seed = config["train"]["seed"]
+    debug = config["train"]["debug"]
     
     if not os.path.exists(dirpath.rsplit("/",1)[0]):
         os.mkdir(dirpath.rsplit("/",1)[0])
@@ -30,28 +31,31 @@ def train(config, dirpath):
     
     n_labels = 4
     job_list = ["DS", "MLE", "SE", "C"]
-    config = select_hyperparameters(config)
+    # config = select_hyperparameters(config)
     
     epoch = config["train"]["epoch"]
     kfolds = config["train"]["kfolds"]
     warmup_rate = config["train"]["warmup_rate"]
     using_mlm = config["train"]["using_mlm"]
     mlm_id = config["train"]["mlm_id"]
+    model_name = config["network"]["model_name"]
+    lower_model_name = model_name.rsplit("/", 1)[1] if "/" in model_name else model_name
     gradient_clip_val = config["network"]["gradient_clipping"]
     manual_optimization = config["network"]["at"] is not None
     if manual_optimization: gradient_clip_val = None
     ckpt_name = config["test"]["ckpt"] # best / last
     
-    train_loader_list, valid_loader_list, valid_labels_list, weight_list = get_train_data(config)
+    
+    train_loader_list, valid_loader_list, valid_labels_list, valid_indices_list, weight_list = get_train_data(config, debug)
     logger = pl.loggers.CometLogger(workspace=os.environ.get("zonetsuyoshi"), save_dir=dirpath, project_name="student-cup-2022")
     logger.log_hyperparams(config["train"])
     confmat = np.zeros([n_labels, n_labels])
-    f1macro = 0; valid_probs_list = []
-    for i, (train_loader, valid_loader, valid_labels, weight) in enumerate(zip(train_loader_list, valid_loader_list, valid_labels_list, weight_list)):
+    f1macro = 0; valid_probs = np.zeros([1516, 4])
+    for i, (train_loader, valid_loader, valid_labels, valid_indices, weight) in enumerate(zip(train_loader_list, valid_loader_list, valid_labels_list, valid_indices_list, weight_list)):
         fold_id = i if valid_loader is not None else "A"
         total_steps = epoch * len(train_loader)
         warmup_steps = int(warmup_rate * total_steps) if warmup_rate < 1 else warmup_rate
-        mlm_path = f"../pretrained_models/mlm-k{kfolds}-s{seed}-deberta-v3-base{mlm_id}/fold{fold_id}" if using_mlm else None
+        mlm_path = f"../pretrained_models/mlm-k{kfolds}-s{seed}-{lower_model_name}{mlm_id}/fold{fold_id}" if using_mlm else None
         model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=fold_id, weight=weight, num_warmup_steps=warmup_steps, num_training_steps=total_steps, mlm_path=mlm_path)
         checkpoint = pl.callbacks.ModelCheckpoint(monitor=f'valid_loss{fold_id}' if valid_loader is not None else f"train_loss{fold_id}", mode='min', save_last=True, save_top_k=1, save_weights_only=True, dirpath=dirpath, filename=f"fold{fold_id}_best")
         checkpoint.CHECKPOINT_NAME_LAST = f"fold{fold_id}_last"
@@ -60,8 +64,8 @@ def train(config, dirpath):
         
         if valid_loader is not None:
             model = LitBertForSequenceClassification.load_from_checkpoint(os.path.join(dirpath, f"fold{fold_id}_{ckpt_name}.ckpt"))
-            valid_logits = torch.cat(trainer.predict(model, valid_loader)).detach().cpu().numpy()
-            valid_probs_list.append(F.softmax(valid_logits, dim=-1).numpy())
+            valid_logits = torch.cat(trainer.predict(model, valid_loader)).detach().cpu()
+            valid_probs[valid_indices] = F.softmax(valid_logits, dim=-1).numpy()
             valid_predicted_labels = np.argmax(valid_logits.numpy(), -1)
             confmat += metrics.confusion_matrix(valid_labels, valid_predicted_labels)
             f1macro += metrics.f1_score(valid_labels, valid_predicted_labels, average="macro")
@@ -74,14 +78,14 @@ def train(config, dirpath):
     
     fig, ax = plt.subplots(2,2,figsize=(10,10))
     ax = ax.ravel()
-    valid_probs = np.concatenate(valid_probs_list)
     np.save(os.path.join(dirpath, "valid_probs.npy"), valid_probs)
     valid_labels = np.concatenate(valid_labels_list[:kfolds])
     for i, job_name in enumerate(job_list):
         target = valid_labels==i
         valid_bool = np.argmax(valid_probs[target], -1) == valid_labels[target]
-        for area in [valid_bool, ~valid_bool]:
-            sns.histplot(valid_probs[target][area], bins=np.linspace(0,1,11), ax=ax[i], stat="proportion")
+        for area, label in zip([valid_bool, ~valid_bool], ["correct", "incorrect"]):
+            sns.distplot(valid_probs[target][area], bins=np.linspace(0,1,11), ax=ax[i], label=label)
         ax[i].set_xlabel(job_name)
+        ax[i].legend()
     logger.experiment.log_figure("probs histogram", fig)
         

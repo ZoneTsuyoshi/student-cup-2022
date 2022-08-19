@@ -1,8 +1,7 @@
 import os, sys, json, glob, time, shutil, copy, subprocess, math, datetime, argparse
 import multiprocessing as mp
 import numpy as np
-import matplotlib.pyplot as plt 
-
+from utils import get_gpu_info
 
     
 def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_memory=1500):
@@ -15,9 +14,9 @@ def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_m
     gpu_id = config["train"]["gpu"]
     
     model_list = ["roberta-base", "microsoft/deberta-v3-base", "microsoft/deberta-base", "xlnet-base-cased",
-                 "roberta-large", "microsoft/deberta-v3-large", "microsoft/deberta-large",  "xlnet-large-cased"]
-    bs_list = np.repeat(np.array([16,8]), 4).tolist()
-    wd_list = [0.1, 0.01, 0.01, 0.01, 0.1, 0.01, 0.01, 0.01]
+                 "roberta-large", "microsoft/deberta-v3-large", "microsoft/deberta-large"]
+    bs_list = [16, 16, 16, 16, 8, 8, 4]
+    wd_list = [0.1, 0.01, 0.01, 0.01, 0.1, 0.01, 0.01]
     mi_list = [5, 6, 5, 1, 5, 1, 1, 1]
     gs_dict = {"mix":{"model_name":model_list, "batch_size":bs_list, "weight_decay":wd_list, "mlm_id":mi_list},
               "using_mlm":[True, False],

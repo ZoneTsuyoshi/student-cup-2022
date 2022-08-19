@@ -72,7 +72,7 @@ def get_train_data_for_mlm(config, return_dataset=["fold", "all"]):
     return train_dataset, valid_dataset
     
     
-def get_train_data(config, return_loader=["fold", "all"]):
+def get_train_data(config, debug=False, return_loader=["fold", "all"]):
     model_name = config["network"]["model_name"]
     weight_on = config["train"]["weight"]
     valid_rate = config["train"]["valid_rate"]
@@ -84,7 +84,7 @@ def get_train_data(config, return_loader=["fold", "all"]):
     random.seed(seed)
     
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    train_loader, valid_loader, valid_labels, weight = [], [], [], []
+    train_loader, valid_loader, valid_labels, valid_indices_list, weight = [], [], [], [], []
     
     if "fold" in return_loader:
         train_df = pd.read_csv(f"../data/{kfolds}fold-seed{seed}.csv", index_col=0)
@@ -94,9 +94,13 @@ def get_train_data(config, return_loader=["fold", "all"]):
         for i in range(kfolds):
             train_indices = all_indices[train_df["fold"]!=i]
             valid_indices = all_indices[train_df["fold"]==i]
+            if debug:
+                train_indices = train_indices[:32]
+                valid_indices = valid_indices[:32]
             train_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[train_indices], train_labels[train_indices], da_method, mask_ratio)), batch_size=batch_size, shuffle=True))
             valid_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts[valid_indices], train_labels[valid_indices])), batch_size=batch_size, shuffle=False))
             valid_labels.append(train_labels[valid_indices])
+            valid_indices_list.append(valid_indices)
             if weight_on: 
                 weight.append(torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels[train_indices]), dtype=torch.float32))
             else:
@@ -105,23 +109,29 @@ def get_train_data(config, return_loader=["fold", "all"]):
         train_df = pd.read_csv("../data/train.csv", index_col=0) # id, description, jopflag
         train_texts = adjust_texts(train_df["description"].values)
         train_labels = train_df["jobflag"].values - 1
+        if debug:
+            train_texts = train_texts[:16]
+            train_labels = train_labels[:16]
         train_loader.append(DataLoader(DescriptionDataset(**embed_and_augment(tokenizer, train_texts, train_labels, da_method, mask_ratio)), batch_size=batch_size, shuffle=True))
         valid_loader.append(None)
+        valid_indices_list.append(None)
         valid_labels.append(None)
         if weight_on: 
             weight.append(torch.tensor(compute_class_weight("balanced", classes=np.arange(4), y=train_labels), dtype=torch.float32))
         else:
             weight.append(None)
-    return train_loader, valid_loader, valid_labels, weight
+    return train_loader, valid_loader, valid_labels, valid_indices_list, weight
     
     
     
-def get_test_data(config):
+def get_test_data(config, debug=False):
     model_name = config["network"]["model_name"]
     batch_size = config["train"]["batch_size"]
     
     test_df = pd.read_csv("../data/test.csv", index_col=0) # id, description
     test_texts = adjust_texts(test_df["description"].values)
+    if debug:
+        test_texts = test_texts[:16]
     
     # tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_name)
