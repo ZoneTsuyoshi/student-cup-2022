@@ -153,4 +153,4 @@ if __name__ == "__main__":
     config = json.load(f)
     f.close()
     
-    gs_main(config, args.p, args.q, args.m)
+    gs_main(config, args.parallel, args.queue, args.memory)
