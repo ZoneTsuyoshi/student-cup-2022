@@ -13,15 +13,15 @@ def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_m
     number_of_date = config["train"]["number_of_date"]
     gpu_id = config["train"]["gpu"]
     
-    model_list = ["roberta-base", "microsoft/deberta-v3-base", "microsoft/deberta-base", "xlnet-base-cased",
-                 "roberta-large", "microsoft/deberta-v3-large", "microsoft/deberta-large"]
-    bs_list = [16, 16, 16, 16, 8, 8, 4]
-    wd_list = [0.1, 0.01, 0.01, 0.01, 0.1, 0.01, 0.01]
-    mi_list = [5, 6, 5, 1, 5, 1, 1, 1]
-    gs_dict = {"mix":{"model_name":model_list, "batch_size":bs_list, "weight_decay":wd_list, "mlm_id":mi_list},
-              "using_mlm":[True, False],
-              "mix2":{"loss":["FL", "DL"], "gamma":[2, 1]},
-              "mix3":{"at":["awp", "fgm", None], "adv_lr":[1., 0.1, 1.], "gpu":[0,1,2]}}
+    model_list = ["roberta-large", "microsoft/deberta-v3-large", "microsoft/deberta-large", "xlnet-large-cased",
+                "roberta-base", "microsoft/deberta-v3-base", "microsoft/deberta-base", "xlnet-base-cased"]
+    bs_list = [8, 8, 4, 4] + [16, 16, 16, 16]
+    wd_list =  [0.1, 0.01, 0.01, 0.01] + [0.1, 0.01, 0.01, 0.01]
+    # mi_list = [5, 6, 5, 1, 5, 1, 1, 1, 1]
+    ep_list = [10, 10, 5, 5] + [20, 20, 20, 20]
+    gs_dict = {"mix":{"model_name":model_list, "batch_size":bs_list, "weight_decay":wd_list, "epoch":ep_list},
+               "lr":[1e-5, 2e-5, 3e-5],
+              "mix3":{"adv_lr":[1e-3, 1e-2, 1e-1], "gpu":[0,1,2]}}
 
 
     gs_key = list(gs_dict.keys()) # list of keys for grid search
