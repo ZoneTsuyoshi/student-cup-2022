@@ -38,6 +38,7 @@ def train(config, dirpath):
     warmup_rate = config["train"]["warmup_rate"]
     using_mlm = config["train"]["using_mlm"]
     mlm_id = config["train"]["mlm_id"]
+    adv_start_epoch = config["train"]["adv_start_epoch"]
     model_name = config["network"]["model_name"]
     lower_model_name = model_name.rsplit("/", 1)[1] if "/" in model_name else model_name
     gradient_clip_val = config["network"]["gradient_clipping"]
@@ -55,8 +56,9 @@ def train(config, dirpath):
         fold_id = i if valid_loader is not None else "A"
         total_steps = epoch * len(train_loader)
         warmup_steps = int(warmup_rate * total_steps) if warmup_rate < 1 else warmup_rate
+        adv_start_epoch = adv_start_epoch if type(adv_start_epoch)==int else int(adv_start_epoch * epoch)
         mlm_path = f"../pretrained_models/mlm-k{kfolds}-s{seed}-{lower_model_name}{mlm_id}/fold{fold_id}" if using_mlm else None
-        model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=fold_id, weight=weight, num_warmup_steps=warmup_steps, num_training_steps=total_steps, mlm_path=mlm_path)
+        model = LitBertForSequenceClassification(**config["network"], dirpath=dirpath, fold_id=fold_id, weight=weight, num_warmup_steps=warmup_steps, num_training_steps=total_steps, mlm_path=mlm_path, adv_start_epoch=adv_start_epoch)
         checkpoint = pl.callbacks.ModelCheckpoint(monitor=f'valid_loss{fold_id}' if valid_loader is not None else f"train_loss{fold_id}", mode='min', save_last=True, save_top_k=1, save_weights_only=True, dirpath=dirpath, filename=f"fold{fold_id}_best")
         checkpoint.CHECKPOINT_NAME_LAST = f"fold{fold_id}_last"
         trainer = pl.Trainer(accelerator="gpu", devices=[gpu], max_epochs=epoch, gradient_clip_val=gradient_clip_val, callbacks=[checkpoint], logger=logger)
@@ -80,6 +82,7 @@ def train(config, dirpath):
     ax = ax.ravel()
     np.save(os.path.join(dirpath, "valid_probs.npy"), valid_probs)
     valid_labels = np.concatenate(valid_labels_list[:kfolds])
+    valid_labels[np.concatenate(valid_indices_list[:kfolds])] = valid_labels
     for i, job_name in enumerate(job_list):
         target = valid_labels==i
         valid_bool = np.argmax(valid_probs[target], -1) == valid_labels[target]

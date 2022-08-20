@@ -11,8 +11,9 @@
         "weight":false,
         "da":"m",
         "mask_ratio":0.1,
-        "using_mlm":true,
+        "using_mlm":false,
         "mlm_id":6,
+        "adv_start_epoch":0.2,
         "debug":false
     },
     
@@ -33,7 +34,6 @@
         "at":"awp",
         "adv_lr":1e-2,
         "adv_eps":1e-2,
-        "adv_start_epoch":2,
         "adv_steps":1
     },
     

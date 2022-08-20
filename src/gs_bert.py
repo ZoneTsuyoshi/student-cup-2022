@@ -21,7 +21,7 @@ def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_m
     ep_list = [10, 10, 5, 5] + [20, 20, 20, 20]
     gs_dict = {"mix":{"model_name":model_list, "batch_size":bs_list, "weight_decay":wd_list, "epoch":ep_list},
                "lr":[1e-5, 2e-5, 3e-5],
-              "mix3":{"adv_lr":[1e-3, 1e-2, 1e-1], "gpu":[0,1,2]}}
+              "mix3":{"adv_lr":[1e-2, 1e-1, 1.], "gpu":[0,1,2]}}
 
 
     gs_key = list(gs_dict.keys()) # list of keys for grid search
