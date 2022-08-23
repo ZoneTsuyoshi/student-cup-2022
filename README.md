@@ -3,11 +3,13 @@
 ## score
 |branch|CV|LB|rdir|hparams|
 |----|----|----|----|----|
-|exp02|0.7166850|0.7483100|12-roberta-base2|ep=20, lr=2e-5, do=0.1, FL(2), wd=0.1, sc=None|
-|exp9|0.7240025|0.7449114|17-deberta-large1|ep=10, mr=0.1, lr=2e-5, do=0.1, FL(2), wd=0.01, gc=1, sc=Linear(ws=50)|
-|exp10|0.695|0.7143739|17-deberta-base1|ep=10, mr=0.1, lr=2e-5, do=0.1, FL(2), wd=0.01, gc=1, sc=Linear(ws=50), at=AWP(eps=1e-2,lr=1e-4)|
+|exp02|0.717|0.748|12-roberta-base2|ep=20, lr=2e-5, do=0.1, FL(2), wd=0.1, sc=None|
+|exp9|0.724|0.745|17-deberta-v3-large1|ep=10, mr=0.1, lr=2e-5, do=0.1, FL(2), wd=0.01, gc=1, sc=Linear(ws=50)|
+|exp10|0.695|0.714|17-deberta-base1|ep=10, mr=0.1, lr=2e-5, do=0.1, FL(2), wd=0.01, gc=1, sc=Linear(ws=50), at=AWP(eps=1e-2,lr=1e-4)|
 |exp15|0.717|0.718|19_gs1/mnroberta-basebs16wd0.1mi5umFalselFLg2aawpal1.0g0|ep=10, mr=0,1, lr=2e-5, do=0.1, sc=Linear(ws=100)|
 |exp15|0.715|0.710|19_gs1/mnxlnet-base-casedbs16wd0.01mi1umFalselFLg2aawpal1.0g0|ep=10, mr=0.1, lr=2e-5, do=0.1, sc=Linear(ws=100)|
+|exp16|0.692|0.729|22_gs1/mnmicrosoft/deberta-v3-largebs8wd0.01e10aNoneal1.0g2|mr=0.1, lr=2e-5, do=0.1, sc=Linear(ws=100)|
+|exp16|0.716|0.749|22_gs1/mnroberta-largebs8wd0.1e10mi5umTruel2e-05g0|mr=0.1, do=0.1, sc=Linear(ws=100)|
 
 
 ## MLM pretrained

@@ -13,7 +13,7 @@
         "mask_ratio":0.1,
         "using_mlm":false,
         "mlm_id":6,
-        "adv_start_epoch":0.2,
+        "adv_start_epoch":1.0,
         "debug":false
     },
     
@@ -31,9 +31,9 @@
         "beta2":0.999,
         "epsilon":1e-6,
         "scheduler":"linear",
-        "at":"awp",
+        "at":null,
         "adv_lr":1e-2,
-        "adv_eps":1e-2,
+        "adv_eps":1e-3,
         "adv_steps":1
     },
     

@@ -13,15 +13,29 @@ def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_m
     number_of_date = config["train"]["number_of_date"]
     gpu_id = config["train"]["gpu"]
     
-    model_list = ["roberta-large", "microsoft/deberta-v3-large", "microsoft/deberta-large", "xlnet-large-cased",
-                "roberta-base", "microsoft/deberta-v3-base", "microsoft/deberta-base", "xlnet-base-cased"]
-    bs_list = [8, 8, 4, 4] + [16, 16, 16, 16]
-    wd_list =  [0.1, 0.01, 0.01, 0.01] + [0.1, 0.01, 0.01, 0.01]
-    # mi_list = [5, 6, 5, 1, 5, 1, 1, 1, 1]
-    ep_list = [10, 10, 5, 5] + [20, 20, 20, 20]
-    gs_dict = {"mix":{"model_name":model_list, "batch_size":bs_list, "weight_decay":wd_list, "epoch":ep_list},
-               "lr":[1e-5, 2e-5, 3e-5],
-              "mix3":{"adv_lr":[1e-2, 1e-1, 1.], "gpu":[0,1,2]}}
+    # model_list = ["microsoft/deberta-v3-large", "roberta-large", "microsoft/deberta-large", "xlnet-large-cased",
+    #             "roberta-base", "microsoft/deberta-v3-base", "microsoft/deberta-base", "xlnet-base-cased"]
+    # bs_list = [8, 8, 4, 4] + [16, 16, 16, 16]
+    # wd_list =  [0.01, 0.1, 0.01, 0.01] + [0.1, 0.01, 0.01, 0.01]
+    # ep_list = [10, 10, 5, 5] + [20, 20, 20, 20]
+    model_dict = {"microsoft/deberta-v3-large":{"bs":8, "wd":0.01, "ep":10, "mi":1},
+                  "roberta-large":{"bs":8, "wd":0.1, "ep":10, "mi":5},
+                  "microsoft/deberta-large":{"bs":4, "wd":0.01, "ep":5, "mi":1},
+                  "xlnet-large-cased":{"bs":4, "wd":0.01, "ep":5, "mi":1},
+                  "roberta-base":{"bs":16, "wd":0.1, "ep":20, "mi":5},
+                  "microsoft/deberta-v3-base":{"bs":16, "wd":0.01, "ep":20, "mi":6}, 
+                  "microsoft/deberta-base":{"bs":16, "wd":0.01, "ep":20, "mi":5},
+                  "xlnet-base-cased":{"bs":16, "wd":0.01, "ep":20, "mi":1}}
+    # model_list = ["roberta-large", "microsoft/deberta-large", "microsoft/deberta-v3-large"]
+    # model_list = ["roberta-base", "microsoft/deberta-v3-base", "microsoft/deberta-base"]
+    model_list = ["roberta-base", "roberta-large", "microsoft/deberta-v3-large"]
+    bs_list = [model_dict[m]["bs"] for m in model_list]
+    wd_list = [model_dict[m]["wd"] for m in model_list]
+    ep_list = [model_dict[m]["ep"] for m in model_list]
+    mi_list = [model_dict[m]["mi"] for m in model_list]
+    gs_dict = {"mix":{"model_name":model_list, "batch_size":bs_list, "weight_decay":wd_list, "epoch":ep_list, "mlm_id":mi_list},
+              "mask_ratio":[0.1, 0.2],
+              "mix3":{"at":["fgm", "awp", None], "adv_lr":[1e-1, 1., 1.], "gpu":[0,1,2]}}
 
 
     gs_key = list(gs_dict.keys()) # list of keys for grid search
@@ -107,9 +121,6 @@ def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_m
     
     if parallel_strategy_on:
         for i in range((len(name_list)-1)//max_parallel_queues+1):
-            p = mp.Pool(min(mp.cpu_count(), max_parallel_queues))
-            p.map(subprocess.run, total_parse_list[max_parallel_queues*i:max_parallel_queues*(i+1)])
-            p.close()
             if "gpu" in gs_key:
                 gpu_ids = gs_dict["gpu"]
                 memory_used = [int(get_gpu_info()[gpu_id]["memory.used"]) for gpu_id in gpu_ids]
@@ -123,6 +134,9 @@ def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_m
                     print("waiting in {}-th parallel computation".format(i+1))
                     time.sleep(10)
                     memory_used = int(get_gpu_info()[gpu_id]["memory.used"])
+            p = mp.Pool(min(mp.cpu_count(), max_parallel_queues))
+            p.map(subprocess.run, total_parse_list[max_parallel_queues*i:max_parallel_queues*(i+1)])
+            p.close()
     else:
         for parse_element in total_parse_list:
             subprocess.run(parse_element)
