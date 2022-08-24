@@ -28,14 +28,14 @@ def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_m
                   "xlnet-base-cased":{"bs":16, "wd":0.01, "ep":20, "mi":1}}
     # model_list = ["roberta-large", "microsoft/deberta-large", "microsoft/deberta-v3-large"]
     # model_list = ["roberta-base", "microsoft/deberta-v3-base", "microsoft/deberta-base"]
-    model_list = ["roberta-large", "microsoft/deberta-v3-large"]
+    model_list = ["roberta-base", "roberta-large", "microsoft/deberta-v3-large"]
     bs_list = [model_dict[m]["bs"] for m in model_list]
     wd_list = [model_dict[m]["wd"] for m in model_list]
     ep_list = [model_dict[m]["ep"] for m in model_list]
     mi_list = [model_dict[m]["mi"] for m in model_list]
     gs_dict = {"mix":{"model_name":model_list, "batch_size":bs_list, "weight_decay":wd_list, "epoch":ep_list, "mlm_id":mi_list},
-              "mask_ratio":[0.1, 0.2],
-              "mix3":{"at":["fgm", "awp", None], "adv_lr":[1e-1, 1., 1.], "gpu":[0,1,2]}}
+               "loss":["FLS", "FL"],
+              "mix3":{"at":["awp", "awp", None], "adv_lr":[1e-1, 1., 1.], "gpu":[0,1,2]}}
 
 
     gs_key = list(gs_dict.keys()) # list of keys for grid search
