@@ -10,7 +10,7 @@
 |exp15|0.715|0.710|19_gs1/mnxlnet-base-casedbs16wd0.01mi1umFalselFLg2aawpal1.0g0|ep=10, mr=0.1, lr=2e-5, do=0.1, sc=Linear(ws=100)|
 |exp16|0.692|0.729|22_gs1/mnmicrosoft/deberta-v3-largebs8wd0.01e10aNoneal1.0g2|mr=0.1, lr=2e-5, do=0.1, sc=Linear(ws=100)|
 |exp16|0.716|0.749|22_gs1/mnroberta-largebs8wd0.1e10mi5umTruel2e-05g0|mr=0.1, do=0.1, sc=Linear(ws=100)|
-
+|exp16|0.722|0.726|23_gs1/mnmicrosoft/deberta-v3-largebs8wd0.01e10mi1mr0.1afgmal0.1g0|do=0.1, sc=Linear(ws=100)|
 
 ## MLM pretrained
 DeBERTa-v3-base

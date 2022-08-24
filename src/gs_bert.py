@@ -28,7 +28,7 @@ def gs_main(config, parallel_strategy_on=False, max_parallel_queues=3, minimum_m
                   "xlnet-base-cased":{"bs":16, "wd":0.01, "ep":20, "mi":1}}
     # model_list = ["roberta-large", "microsoft/deberta-large", "microsoft/deberta-v3-large"]
     # model_list = ["roberta-base", "microsoft/deberta-v3-base", "microsoft/deberta-base"]
-    model_list = ["roberta-base", "roberta-large", "microsoft/deberta-v3-large"]
+    model_list = ["roberta-large", "microsoft/deberta-v3-large"]
     bs_list = [model_dict[m]["bs"] for m in model_list]
     wd_list = [model_dict[m]["wd"] for m in model_list]
     ep_list = [model_dict[m]["ep"] for m in model_list]

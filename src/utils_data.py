@@ -219,11 +219,11 @@ def adjust_texts(arr):
         results[i] = re.sub("([a-z])</li>", "\\1.</li>", results[i].replace("<li> ", "<li>").replace(" </li>", "</li>")).replace("</li>", " </li>").replace("\\", "")
         if "http" in results[i] or "u202f" in results[i]:
             words = results[i].split(" ")
-            for i,w in enumerate(words):
+            for j,w in enumerate(words):
                 if "http" in w:
-                    words[i] = "URL"
+                    words[j] = "URL"
                 if "u202f" in w:
-                    words[i] = " ".join(w.split("u202f"))
+                    words[j] = " ".join(w.split("u202f"))
             results[i] = " ".join(words)
     return results
     
