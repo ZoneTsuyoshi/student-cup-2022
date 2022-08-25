@@ -32,6 +32,7 @@ def main():
         i += 1
     dirpath = dirpath + str(i)
     os.mkdir(dirpath)
+    print("dirpath: {}".format(dirpath))
     
     valid_probs_list, test_probs_list = [], []
     for name in ensemble_names:
@@ -50,7 +51,7 @@ def main():
     results = minimize(loss_fn, initial_w, method=method, bounds=bounds, constraints=cons)
     
     print("best {}: {:.2f}".format(loss_name, results["fun"]))
-    result_dict = {"models":ensemble_names, "target":loss_name, "method":method, "weight":results["x"].tolist(), "f1":results["fun"]}
+    result_dict = {"models":ensemble_names, "target":loss_name, "method":method, "weight":results["x"].tolist(), "f1":-results["fun"]}
     with open(os.path.join(dirpath, "results.json"), "w") as f:
         json.dump(result_dict, f, indent=4, ensure_ascii=False)
     # np.save(os.path.join(dirpath, "results.npy"), {"results":results, "params":{"models":ensemble_names, "target":loss_name, "method":method}})
