@@ -62,7 +62,7 @@
 最後の結果を提出し，PLB 0.726（最終58位,blonze）でフィニッシュ
 
 |branch|CV|LB|PLB|rdir|hparams|
-|----|----|----|----|----|
+|----|----|----|----|----|----|
 |exp02|0.717|0.748|0.731|12-roberta-base2|ep=20, lr=2e-5, do=0.1, FL(2), wd=0.1, sc=None|
 |exp9|0.724|0.745|0.718|17-deberta-v3-large1|ep=10, mr=0.1, lr=2e-5, do=0.1, FL(2), wd=0.01, gc=1, sc=Linear(ws=50)|
 |exp10|0.695|0.714|0.709|17-deberta-base1|ep=10, mr=0.1, lr=2e-5, do=0.1, FL(2), wd=0.01, gc=1, sc=Linear(ws=50), at=AWP(eps=1e-2,lr=1e-4)|
