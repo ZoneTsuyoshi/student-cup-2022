@@ -2,6 +2,7 @@
 data/
 pretrained_models/
 results/
+ensembles/
 src/lightning_logs/
 src/nohup.out
 src/kill_process.py
