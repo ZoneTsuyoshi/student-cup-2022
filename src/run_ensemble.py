@@ -51,10 +51,15 @@ def main():
     bounds = [(0,1)]*len(ensemble_names)
     results = minimize(loss_fn, initial_w, method=method, bounds=bounds, constraints=cons)
     
+<<<<<<< HEAD
     weight = results["x"]
     f1_score = -get_loss_fn(valid_probs, valid_labels, sample_weight, "f1")(weight)
     print("best f1: {:.3f}".format(f1_score))
     result_dict = {"models":ensemble_names, "target":loss_name, "method":method, "weight":results["x"].tolist(), loss_name:results["fun"], "F1":f1_score}
+=======
+    print("best {}: {:.2f}".format(loss_name, results["fun"]))
+    result_dict = {"models":ensemble_names, "target":loss_name, "method":method, "weight":results["x"].tolist(), "f1":-results["fun"]}
+>>>>>>> 166a8d6e438837f5bd78ee1d49198f9c68637e23
     with open(os.path.join(dirpath, "results.json"), "w") as f:
         json.dump(result_dict, f, indent=4, ensure_ascii=False)
     # np.save(os.path.join(dirpath, "results.npy"), {"results":results, "params":{"models":ensemble_names, "target":loss_name, "method":method}})

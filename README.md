@@ -60,6 +60,7 @@
 
 ## score
 最後の結果を提出し，PLB 0.726（最終58位,blonze）でフィニッシュ
+
 |branch|CV|LB|PLB|rdir|hparams|
 |----|----|----|----|----|
 |exp02|0.717|0.748|0.731|12-roberta-base2|ep=20, lr=2e-5, do=0.1, FL(2), wd=0.1, sc=None|
